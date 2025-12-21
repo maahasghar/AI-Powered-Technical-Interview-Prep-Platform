@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from jose import jwt
 from app.core.config import settings
 from passlib.context import CryptContext
+import secrets
 
 ALGORITHM = "HS256"
 
@@ -22,3 +23,6 @@ def hash_password(password: str) -> str:
 
 def verify_password(password: str, hashed_password: str) -> bool:
     return pwd_context.verify(password, hashed_password)
+
+def generate_verification_token() -> str:
+    return secrets.token_urlsafe(32)

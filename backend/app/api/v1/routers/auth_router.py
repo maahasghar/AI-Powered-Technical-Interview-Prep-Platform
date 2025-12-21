@@ -19,6 +19,5 @@ def refresh(payload: RefreshRequest):
 
 @router.get("/verify")
 def verify_email(token: str):
-    user = repo.get_by_token(token)
-    user.is_verified = True
-    user.email_verification_token = None
+    container.auth_service.verify_email(token)
+    return {"message": "Email verified successfully"}

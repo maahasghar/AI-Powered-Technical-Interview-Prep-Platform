@@ -8,6 +8,10 @@ class AuthService:
         if not verify_password(password, user.password_hash):
             raise InvalidCredentials()
 
+        #block user until email verified
+        if not user.is_verified:
+            raise EmailNotVerifiedError()
+
         access_token = create_access_token({"sub": user.id})
         refresh_token = create_refresh_token({"sub": user.id})
 
@@ -46,3 +50,37 @@ class AuthService:
                 raise HTTPException(status_code=403, detail="Forbidden")
             return user
         return checker
+
+    def register(self, payload: RegisterRequest):
+        user = self.user_repo.create_user(
+            email=payload.email,
+            password_hash=self.hasher.hash(payload.password),
+            is_verified=False
+        )
+
+        token = generate_verification_token()
+
+        self.verification_repo.create(
+            user_id=user.id,
+            token=token,
+            expires_at=now() + timedelta(hours=24)
+        )
+
+        self.email_service.send_verification_email(
+            email=user.email,
+            token=token
+        )
+
+        return user
+    def verify_email(self, token: str):
+        record = self.verification_repo.get_by_token(token)
+
+        if not record:
+            raise InvalidTokenError()
+
+        if record.used or record.expires_at < now():
+            raise TokenExpiredError()
+
+        self.user_repo.mark_verified(record.user_id)
+
+        self.verification_repo.mark_used(record.id)
