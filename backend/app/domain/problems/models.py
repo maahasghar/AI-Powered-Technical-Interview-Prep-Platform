@@ -1,7 +1,6 @@
-from sqlalchemy import Column, Integer, String, DateTime
-from sqlalchemy.sql import func
 from app.infrastructure.db import Base
-from sqlalchemy import Column, Integer, String, Text, ARRAY
+from sqlalchemy import ARRAY, Column, Integer, String, Text
+
 
 class Problem(Base):
     __tablename__ = "problem_bank"

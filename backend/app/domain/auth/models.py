@@ -1,7 +1,7 @@
-from sqlalchemy import Column, Integer, String, DateTime
-from sqlalchemy.sql import func
 from app.infrastructure.db import Base
-from sqlalchemy import Column, Integer, String, Text, ARRAY
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy.sql import func
+
 
 class User(Base):
     __tablename__ = "users"
@@ -14,6 +14,7 @@ class User(Base):
     is_verified = Column(Boolean, default=False)
     verified_at = Column(DateTime(timezone=True))
     email_verification_token = Column(String, nullable=True)
+
 
 class AuthToken(Base):
     __tablename__ = "auth_tokens"

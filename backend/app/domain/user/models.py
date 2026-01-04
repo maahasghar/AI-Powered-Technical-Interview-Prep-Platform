@@ -1,7 +1,5 @@
-from sqlalchemy import Column, Integer, String, DateTime
-from sqlalchemy.sql import func
 from app.infrastructure.db import Base
-from sqlalchemy import Column, Integer, String, Text, ARRAY
+from sqlalchemy import Column, Integer, String
 
 
 class UserProfile(Base):
