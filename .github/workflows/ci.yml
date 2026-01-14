@@ -38,8 +38,11 @@ jobs:
           pip install ruff black isort pytest
       
       - run: ruff check backend
+      - run: ruff backend
       - run: black --check backend
+      - run: black backend
       - run: isort --check-only backend
+      - run: isort backend
 
       - run: pytest backend
 
