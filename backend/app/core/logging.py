@@ -4,6 +4,7 @@
 import logging
 import uuid
 
+import structlog
 from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = logging.getLogger("app")
@@ -23,3 +24,19 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         logger.info(f"⬅️ Response {request_id}: status={response.status_code}")
 
         return response
+
+
+def setup_logging():
+    """
+    Configure basic logging and structlog for the application.
+    Sets up JSON rendering with timestamps for structured logging.
+    """
+    logging.basicConfig(level=logging.INFO)
+
+    structlog.configure(
+        wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
+        processors=[
+            structlog.processors.TimeStamper(fmt="iso"),
+            structlog.processors.JSONRenderer(),
+        ],
+    )
