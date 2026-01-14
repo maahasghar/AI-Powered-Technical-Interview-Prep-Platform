@@ -37,9 +37,9 @@ jobs:
           pip install pre-commit
           pip install ruff black isort pytest
       
-      - run: ruff backend
+      - run: ruff check backend
       - run: black --check backend
-      - run: isort backend
+      - run: isort --check-only backend
 
       - run: pytest backend
 
