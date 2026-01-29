@@ -1,35 +1,42 @@
 from datetime import datetime
-from datetime import datetime as now
-from datetime import timedelta
 
-from app.domain.auth.schemas import RegisterRequest
-from exceptions import (
-    EmailNotVerifiedError,
-    InvalidCredentials,
-    InvalidTokenError,
-    TokenExpiredError,
-    Unauthorized,
-)
-from fastapi import Depends, HTTPException
-from fastapi.security import OAuth2PasswordBearer as oauth2_scheme
-from jose import JWTError, jwt
-
-from backend.app.core.config import Settings
-from backend.app.core.security import (
+from app.core.config import settings
+from app.core.security import (  # generate_verification_token,
     create_access_token,
     create_refresh_token,
-    generate_verification_token,
+    hash_password,
     verify_password,
 )
+from app.domain.auth.exceptions import (  # InvalidTokenError,; TokenExpiredError,
+    EmailNotVerifiedError,
+    InvalidCredentials,
+    Unauthorized,
+)
+from app.domain.auth.schemas import LoginRequest, RegisterRequest
+from fastapi import Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
 
-oauth2 = oauth2_scheme()
+# from datetime import datetime as now
+# from datetime import timedelta
+
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login")
 
 
 class AuthService:
-    def login(self, email: str, password: str):
-        user = self.user_repo.get_by_email(email)
+    def __init__(self, token_repo, user_repo, email_service):
+        self.token_repo = token_repo
+        self.user_repo = user_repo
+        self.email_service = email_service
 
-        if not verify_password(password, user.password_hash):
+    def login(self, payload: LoginRequest):
+        user = self.user_repo.get_by_email(payload.email)
+
+        if not user:
+            raise InvalidCredentials()
+
+        if not verify_password(payload.password, user.password_hash):
             raise InvalidCredentials()
 
         # block user until email verified
@@ -41,7 +48,11 @@ class AuthService:
 
         self.token_repo.save(user_id=user.id, refresh_token=refresh_token)
 
-        return {"access_token": access_token, "refresh_token": refresh_token}
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+        }
 
     def logout(self, refresh_token: str):
         self.token_repo.revoke(refresh_token)
@@ -52,12 +63,15 @@ class AuthService:
         if not token or token.revoked or token.expires_at < datetime.utcnow():
             raise Unauthorized()
 
-        return create_access_token({"sub": token.user_id})
+        return {
+            "access_token": create_access_token({"sub": token.user_id}),
+            "token_type": "bearer",
+        }
 
     @staticmethod
     def get_current_user(token: str = Depends(oauth2_scheme)):
         try:
-            payload = jwt.decode(token, Settings.JWT_SECRET, algorithms=["HS256"])
+            payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
             return payload["sub"]
         except JWTError:
             raise HTTPException(status_code=401, detail="Invalid token")
@@ -74,29 +88,28 @@ class AuthService:
     def register(self, payload: RegisterRequest):
         user = self.user_repo.create_user(
             email=payload.email,
-            password_hash=self.hasher.hash(payload.password),
+            password_hash=hash_password(payload.password),
             is_verified=False,
         )
 
-        token = generate_verification_token()
+        # token = generate_verification_token()
 
-        self.verification_repo.create(
-            user_id=user.id, token=token, expires_at=now() + timedelta(hours=24)
-        )
+        # Note: verification_repo is not in the current container, skipping for now
+        # self.verification_repo.create(
+        #     user_id=user.id, token=token, expires_at=now() + timedelta(hours=24)
+        # )
 
-        self.email_service.send_verification_email(email=user.email, token=token)
+        # self.email_service.send_verification_email(email=user.email, token=token)
 
         return user
 
     def verify_email(self, token: str):
-        record = self.verification_repo.get_by_token(token)
-
-        if not record:
-            raise InvalidTokenError()
-
-        if record.used or record.expires_at < now():
-            raise TokenExpiredError()
-
-        self.user_repo.mark_verified(record.user_id)
-
-        self.verification_repo.mark_used(record.id)
+        # Note: verification_repo is not in the current container
+        # record = self.verification_repo.get_by_token(token)
+        # if not record:
+        #     raise InvalidTokenError()
+        # if record.used or record.expires_at < now():
+        #     raise TokenExpiredError()
+        # self.user_repo.mark_verified(record.user_id)
+        # self.verification_repo.mark_used(record.id)
+        pass

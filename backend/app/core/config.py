@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings
 
 
@@ -6,9 +8,10 @@ class Settings(BaseSettings):
     REDIS_URL: str
     JWT_SECRET: str
     ENV: str = "dev"
+    SENTRY_DSN: str = ""
 
     class Config:
-        env_file = ".env"
+        env_file = str(Path(__file__).parent.parent / ".env")
 
 
 settings = Settings()

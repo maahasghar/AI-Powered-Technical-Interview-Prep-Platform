@@ -9,6 +9,29 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, futu
 Base = declarative_base()
 
 
+class Database:
+    def __init__(self):
+        self.session = SessionLocal()
+
+    def query(self, model):
+        return self.session.query(model)
+
+    def add(self, obj):
+        self.session.add(obj)
+
+    def commit(self):
+        self.session.commit()
+
+    def refresh(self, obj):
+        self.session.refresh(obj)
+
+    def delete(self, obj):
+        self.session.delete(obj)
+
+    def close(self):
+        self.session.close()
+
+
 def get_db_session():
     db = SessionLocal()
     try:

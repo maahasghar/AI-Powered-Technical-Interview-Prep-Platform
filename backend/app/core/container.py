@@ -28,7 +28,7 @@ class Container:
 
         # Services
         self.auth_service = AuthService(
-            self.auth_repository, self.redis, self.email_client
+            self.auth_repository, self.user_repository, self.email_client
         )
         self.user_service = UserService(self.user_repository)
         self.problems_service = ProblemsService(self.problems_repository)
