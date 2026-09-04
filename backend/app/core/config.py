@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     SENTRY_DSN: str = ""
 
     class Config:
-        env_file = str(Path(__file__).parent.parent / ".env")
+        env_file = str(Path(__file__).resolve().parents[3] / ".env")
 
 
 settings = Settings()

@@ -1,3 +1,20 @@
+# Environment files and secrets
 .env
-backend/.env
+.env.*
+!.env.example
 frontend/.env
+# Python environments
+venv/
+.venv/
+
+# Python generated files
+__pycache__/
+*.py[cod]
+
+# Testing and tooling
+.pytest_cache/
+.coverage
+htmlcov/
+
+# macOS
+.DS_Store
