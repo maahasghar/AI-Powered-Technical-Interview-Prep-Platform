@@ -7,4 +7,6 @@ RUN npm install
 
 COPY . .
 
-CMD ["npm", "run", "dev"]
+ENV HOST=0.0.0.0
+
+CMD ["npm", "start"]

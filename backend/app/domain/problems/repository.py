@@ -14,6 +14,9 @@ class ProblemsRepository:
     def get_by_difficulty(self, difficulty: int):
         return self.db.query(Problem).filter(Problem.difficulty == difficulty).all()
 
+    def get_by_category(self, category: str):
+        return self.db.query(Problem).filter(Problem.categories.any(category)).all()
+
     def create(
         self,
         title: str,

@@ -11,6 +11,9 @@ class ProblemsService:
     def get_problems_by_difficulty(self, difficulty: int):
         return self.problems_repo.get_by_difficulty(difficulty)
 
+    def get_problems_by_category(self, category: str):
+        return self.problems_repo.get_by_category(category)
+
     def create_problem(
         self,
         title: str,

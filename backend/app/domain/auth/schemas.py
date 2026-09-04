@@ -32,3 +32,11 @@ class MessageResponse(BaseModel):
 class RegisterRequest(BaseModel):
     email: str
     password: str
+
+
+class RegisterResponse(BaseModel):
+    id: int
+    email: str
+    is_verified: bool
+
+    model_config = {"from_attributes": True}
