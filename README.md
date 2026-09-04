@@ -6,6 +6,11 @@ This project is a **production‑grade, full‑stack technical interview prepara
 
 The goal is not just to build features, but to build them **the way real companies do**.
 
+> **Current-state note:** this repository is an early backend foundation, not
+> yet a production-ready full-stack application. See the
+> [project guide and completion roadmap](docs/PROJECT_GUIDE.md) for the current
+> architecture, known gaps, target architecture, and recommended build order.
+
 ---
 
 ## Tech Stack
@@ -245,5 +250,4 @@ Over this month, the project intentionally emphasized:
 * Deploy (Render / Fly.io / AWS)
 
 ---
-
 
