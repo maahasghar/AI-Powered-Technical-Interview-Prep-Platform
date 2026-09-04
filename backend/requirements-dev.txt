@@ -1,0 +1,9 @@
+-r requirements.txt
+
+black
+httpx
+isort
+pre-commit
+pytest
+pytest-mock
+ruff
