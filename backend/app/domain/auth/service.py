@@ -13,9 +13,12 @@ from app.domain.auth.exceptions import (  # InvalidTokenError,; TokenExpiredErro
     Unauthorized,
 )
 from app.domain.auth.schemas import LoginRequest, RegisterRequest
+from app.domain.user.repository import UserRepository
+from app.infrastructure.db import Database, get_db_session
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
+from sqlalchemy.orm import Session
 
 # from datetime import datetime as now
 # from datetime import timedelta
@@ -69,12 +72,21 @@ class AuthService:
         }
 
     @staticmethod
-    def get_current_user(token: str = Depends(oauth2_scheme)):
+    def get_current_user(
+        token: str = Depends(oauth2_scheme),
+        session: Session = Depends(get_db_session),
+    ):
         try:
             payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
-            return payload["sub"]
+            user_id = payload["sub"]
         except JWTError:
             raise HTTPException(status_code=401, detail="Invalid token")
+
+        user_repo = UserRepository(Database(session))
+        user = user_repo.get_by_id(user_id)
+        if user is None:
+            raise HTTPException(status_code=401, detail="User not found")
+        return user
 
     @staticmethod
     def require_role(required_role: str):

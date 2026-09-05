@@ -1,7 +1,7 @@
 from app.api.v1.routers.auth_router import router as auth_router
 from app.api.v1.routers.user_router import router as user_router
 from app.api.v1.routers.problems_router import router as problem_router
-#from app.api.v1.routers.submissions_router import router as submission_router
+from app.api.v1.routers.submissions_router import router as submission_router
 
 from app.core.config import settings
 from app.core.logging import RequestIDMiddleware
@@ -38,7 +38,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[origin.strip() for origin in settings.CORS_ORIGINS.split(",")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -57,5 +57,5 @@ app.add_middleware(RequestIDMiddleware)
 app.include_router(auth_router, prefix="/api/v1", tags=["Auth"])
 app.include_router(user_router, prefix="/api/v1")
 app.include_router(problem_router, prefix="/api/v1")
-#app.include_router(submission_router, prefix="/api/v1")
+app.include_router(submission_router, prefix="/api/v1")
 init_sentry(settings.SENTRY_DSN)

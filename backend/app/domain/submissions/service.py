@@ -5,6 +5,9 @@ class SubmissionsService:
     def get_submission(self, submission_id: int):
         return self.submissions_repo.get_by_id(submission_id)
 
+    def get_all_submissions(self, skip: int = 0, limit: int = 100):
+        return self.submissions_repo.get_all(skip, limit)
+
     def get_user_submissions(self, user_id: int, skip: int = 0, limit: int = 100):
         return self.submissions_repo.get_by_user_id(user_id, skip, limit)
 

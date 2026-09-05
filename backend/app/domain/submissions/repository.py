@@ -8,6 +8,9 @@ class SubmissionsRepository:
     def get_by_id(self, submission_id: int):
         return self.db.query(Submission).filter(Submission.id == submission_id).first()
 
+    def get_all(self, skip: int = 0, limit: int = 100):
+        return self.db.query(Submission).offset(skip).limit(limit).all()
+
     def get_by_user_id(self, user_id: int, skip: int = 0, limit: int = 100):
         return (
             self.db.query(Submission)

@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     JWT_SECRET: str
     ENV: str = "dev"
     SENTRY_DSN: str = ""
+    CORS_ORIGINS: str = "http://localhost:3000"
 
     class Config:
         env_file = str(Path(__file__).resolve().parents[3] / ".env")
