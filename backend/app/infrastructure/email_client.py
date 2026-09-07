@@ -11,4 +11,3 @@ class EmailClient:
         # Placeholder implementation
         # TODO: Implement actual email sending logic (SMTP, SendGrid, etc.)
         print(f"Email sent to {to}: {subject}")
-        pass

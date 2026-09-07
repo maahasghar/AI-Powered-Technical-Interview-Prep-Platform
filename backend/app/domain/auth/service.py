@@ -67,11 +67,7 @@ class AuthService:
     def refresh_access_token(self, refresh_token: str):
         token = self.token_repo.get(refresh_token)
 
-        if (
-            not token
-            or token.revoked
-            or token.expires_at < datetime.now(timezone.utc)
-        ):
+        if not token or token.revoked or token.expires_at < datetime.now(timezone.utc):
             raise Unauthorized()
 
         return {

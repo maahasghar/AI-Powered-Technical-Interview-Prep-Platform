@@ -1,12 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
+from __future__ import annotations
 
 from app.core.container import container
 from app.domain.auth.service import AuthService
 from app.domain.problems.schemas import ProblemCreate, ProblemResponse, ProblemUpdate
 from app.domain.problems.service import ProblemsService
 from app.infrastructure.db import get_db_session
-
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/problems", tags=["Problems"])
 
@@ -39,7 +39,9 @@ def get_problem(
 ):
     problem = problems_service.get_problem(problem_id)
     if problem is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Problem not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Problem not found"
+        )
     return problem
 
 
@@ -71,7 +73,9 @@ def update_problem(
         **payload.model_dump(exclude_unset=True),
     )
     if problem is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Problem not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Problem not found"
+        )
     return problem
 
 
@@ -86,5 +90,7 @@ def delete_problem(
 ):
     problem = problems_service.delete_problem(problem_id)
     if problem is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Problem not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Problem not found"
+        )
     return problem

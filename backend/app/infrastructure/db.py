@@ -1,15 +1,15 @@
+from collections.abc import Generator
+
 from app.core.config import settings
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
-from collections.abc import Generator
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
-#The engine is SQLAlchemy’s connection manager. It connects to PostgreSQL
+# The engine is SQLAlchemy’s connection manager. It connects to PostgreSQL
 engine = create_engine(settings.DATABASE_URL, future=True, pool_pre_ping=True)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, future=True)
 
-#describes your database models and tables
+# describes your database models and tables
 Base = declarative_base()
 
 
@@ -35,14 +35,15 @@ class Database:
     def close(self):
         self.session.close()
 
-#create a dependency to get the database session
+
+# create a dependency to get the database session
 def get_db_session() -> Generator[Session, None, None]:
     db = SessionLocal()
 
     try:
         yield db
     except Exception:
-        #rollback the unfinished transaction in case of an exception to avoid leaving the session in a bad state
+        # rollback the unfinished transaction in case of an exception to avoid leaving the session in a bad state
         db.rollback()
         raise
     finally:

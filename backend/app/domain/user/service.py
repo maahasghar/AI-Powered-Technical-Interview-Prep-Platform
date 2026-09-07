@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+
 class UserService:
     def __init__(self, user_repo):
         self.user_repo = user_repo
@@ -17,9 +20,9 @@ class UserService:
     def create_user_profile(
         self,
         user_id: int,
-        full_name: str = None,
-        bio: str = None,
-        avatar_url: str = None,
+        full_name: str | None = None,
+        bio: str | None = None,
+        avatar_url: str | None = None,
     ):
         return self.user_repo.create_profile(user_id, full_name, bio, avatar_url)
 

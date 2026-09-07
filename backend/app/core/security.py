@@ -1,5 +1,5 @@
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.core.config import settings
 from jose import jwt
@@ -12,7 +12,7 @@ def create_access_token(data: dict, expires_minutes=15):
     payload = data.copy()
     if "sub" in payload:
         payload["sub"] = str(payload["sub"])
-    payload["exp"] = datetime.utcnow() + timedelta(minutes=expires_minutes)
+    payload["exp"] = datetime.now(timezone.utc) + timedelta(minutes=expires_minutes)
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=ALGORITHM)
 
 
@@ -20,7 +20,7 @@ def create_refresh_token(data: dict, expires_days=30):
     payload = data.copy()
     if "sub" in payload:
         payload["sub"] = str(payload["sub"])
-    payload["exp"] = datetime.utcnow() + timedelta(days=expires_days)
+    payload["exp"] = datetime.now(timezone.utc) + timedelta(days=expires_days)
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=ALGORITHM)
 
 

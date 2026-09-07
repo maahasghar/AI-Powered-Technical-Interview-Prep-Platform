@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from app.domain.auth.models import User
 from app.domain.user.models import UserProfile
 
@@ -42,9 +44,9 @@ class UserRepository:
     def create_profile(
         self,
         user_id: int,
-        full_name: str = None,
-        bio: str = None,
-        avatar_url: str = None,
+        full_name: str | None = None,
+        bio: str | None = None,
+        avatar_url: str | None = None,
     ):
         profile = UserProfile(
             user_id=user_id, full_name=full_name, bio=bio, avatar_url=avatar_url

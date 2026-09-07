@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 # The container owns shared infrastructure clients and builds services with their dependencies.
 # Database-backed services receive a request-scoped session from the API layer.
 
+
 ## The container creates and connects the services and tools our application needs.
 # It keeps shared clients, such as Redis and email, in one place.
 # It creates database-backed services using the current request's database session. These requets are passed in from the API layer.

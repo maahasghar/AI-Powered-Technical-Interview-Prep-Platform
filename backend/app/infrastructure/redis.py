@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import redis
 from app.core.config import settings
 
@@ -9,7 +11,7 @@ class RedisClient:
     def get(self, key: str):
         return self.client.get(key)
 
-    def set(self, key: str, value: str, ex: int = None):
+    def set(self, key: str, value: str, ex: int | None = None):
         self.client.set(key, value, ex=ex)
 
     def delete(self, key: str):

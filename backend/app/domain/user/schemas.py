@@ -1,20 +1,20 @@
-from typing import Optional
+from __future__ import annotations
 
 from pydantic import BaseModel
 
 
 class UserProfileUpdate(BaseModel):
-    full_name: Optional[str] = None
-    bio: Optional[str] = None
-    avatar_url: Optional[str] = None
+    full_name: str | None = None
+    bio: str | None = None
+    avatar_url: str | None = None
 
 
 class UserProfile(BaseModel):
     id: int
     user_id: int
-    full_name: Optional[str] = None
-    bio: Optional[str] = None
-    avatar_url: Optional[str] = None
+    full_name: str | None = None
+    bio: str | None = None
+    avatar_url: str | None = None
 
     class Config:
         from_attributes = True

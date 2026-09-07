@@ -11,12 +11,11 @@ os.environ.setdefault(
 )
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 
+from app.core.security import create_access_token, hash_password
 from app.domain.auth.models import User
 from app.domain.problems.models import Problem
 from app.infrastructure.db import Base, get_db_session
 from app.main import app
-from app.core.security import create_access_token, hash_password
-
 
 TEST_DATABASE_URL = os.environ["DATABASE_URL"]
 

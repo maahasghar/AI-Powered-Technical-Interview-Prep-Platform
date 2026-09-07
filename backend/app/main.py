@@ -1,18 +1,17 @@
+from contextlib import asynccontextmanager
+
 from app.api.v1.routers.auth_router import router as auth_router
-from app.api.v1.routers.user_router import router as user_router
 from app.api.v1.routers.problems_router import router as problem_router
 from app.api.v1.routers.submissions_router import router as submission_router
-
+from app.api.v1.routers.user_router import router as user_router
 from app.core.config import settings
-from app.core.logging import RequestIDMiddleware
-from app.core.sentry import init_sentry
 from app.core.container import container
-from app.core.logging import setup_logging
+from app.core.logging import RequestIDMiddleware, setup_logging
+from app.core.sentry import init_sentry
 from app.infrastructure.db import engine
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from fastapi import status
+from fastapi import FastAPI, status
 from sqlalchemy import text
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -32,6 +31,7 @@ async def lifespan(app: FastAPI):
     container.redis.close()
     engine.dispose()
 
+
 app = FastAPI(lifespan=lifespan)
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -47,11 +47,13 @@ app.add_middleware(
 
 @app.get("/", status_code=status.HTTP_200_OK)
 def hello_world():
-	return {"message": "Hello, World!"}
+    return {"message": "Hello, World!"}
+
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
 
 app.add_middleware(RequestIDMiddleware)
 app.include_router(auth_router, prefix="/api/v1", tags=["Auth"])
