@@ -2,10 +2,7 @@ from __future__ import annotations
 
 from app.core.container import container
 from app.domain.auth.service import AuthService
-from app.domain.submissions.schemas import (
-    SubmissionCreate,
-    SubmissionResponse,
-)
+from app.domain.submissions.schemas import SubmissionCreate, SubmissionResponse
 from app.domain.submissions.service import SubmissionsService
 from app.infrastructure.db import get_db_session
 from fastapi import APIRouter, Depends, HTTPException, Query, status

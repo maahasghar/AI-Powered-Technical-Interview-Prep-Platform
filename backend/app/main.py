@@ -10,6 +10,7 @@ from app.core.logging import RequestIDMiddleware, setup_logging
 from app.core.sentry import init_sentry
 from app.infrastructure.db import engine
 from fastapi import FastAPI, status
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 
@@ -33,8 +34,6 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
-
-from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
     CORSMiddleware,
