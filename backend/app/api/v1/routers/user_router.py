@@ -37,7 +37,7 @@ def update_user_profile(
 ):
     """Update user profile (only own profile)"""
     if int(current_user_id) != user_id:
-        raise Exception("Unauthorized")
+        raise HTTPException(status_code=403, detail="Unauthorized")
     return user_service.update_user_profile(user_id, **payload.dict())
 
 
@@ -50,5 +50,5 @@ def create_user_profile(
 ):
     """Create user profile (only own profile)"""
     if int(current_user_id) != user_id:
-        raise Exception("Unauthorized")
+        raise HTTPException(status_code=403, detail="Unauthorized")
     return user_service.create_user_profile(user_id, **payload.dict())
