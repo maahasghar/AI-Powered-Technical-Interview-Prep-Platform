@@ -53,6 +53,26 @@ def list_my_submissions(
 	)
 
 
+@router.get("/problem/{problem_id}", response_model=list[SubmissionResponse])
+def list_problem_submissions(
+	problem_id: int,
+	skip: int = Query(default=0, ge=0),
+	limit: int = Query(default=100, ge=1, le=100),
+	current_user=Depends(AuthService.get_current_user),
+	submissions_service: SubmissionsService = Depends(get_submissions_service),
+):
+	submissions = submissions_service.get_problem_submissions(
+		problem_id=problem_id,
+		skip=skip,
+		limit=limit,
+	)
+
+	if current_user.role != "admin":
+		return [submission for submission in submissions if submission.user_id == current_user.id]
+
+	return submissions
+
+
 @router.get("/{submission_id}", response_model=SubmissionResponse)
 def get_submission(
 	submission_id: int,
@@ -73,27 +93,6 @@ def get_submission(
 		)
 
 	return submission
-
-
-@router.get("/problem/{problem_id}", response_model=list[SubmissionResponse])
-def list_problem_submissions(
-	problem_id: int,
-	skip: int = Query(default=0, ge=0),
-	limit: int = Query(default=100, ge=1, le=100),
-	current_user=Depends(AuthService.get_current_user),
-	submissions_service: SubmissionsService = Depends(get_submissions_service),
-):
-	submissions = submissions_service.get_problem_submissions(
-		problem_id=problem_id,
-		skip=skip,
-		limit=limit,
-	)
-
-	if current_user.role != "admin":
-		return [submission for submission in submissions if submission.user_id == current_user.id]
-
-	return submissions
-
 
 @router.delete("/{submission_id}", response_model=SubmissionResponse)
 def delete_submission(

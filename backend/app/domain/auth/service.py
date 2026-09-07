@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from app.core.config import settings
 from app.core.security import (  # generate_verification_token,
@@ -49,7 +49,11 @@ class AuthService:
         access_token = create_access_token({"sub": user.id})
         refresh_token = create_refresh_token({"sub": user.id})
 
-        self.token_repo.save(user_id=user.id, refresh_token=refresh_token)
+        self.token_repo.save(
+            user_id=user.id,
+            refresh_token=refresh_token,
+            expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+        )
 
         return {
             "access_token": access_token,
@@ -63,7 +67,11 @@ class AuthService:
     def refresh_access_token(self, refresh_token: str):
         token = self.token_repo.get(refresh_token)
 
-        if not token or token.revoked or token.expires_at < datetime.utcnow():
+        if (
+            not token
+            or token.revoked
+            or token.expires_at < datetime.now(timezone.utc)
+        ):
             raise Unauthorized()
 
         return {
@@ -78,7 +86,7 @@ class AuthService:
     ):
         try:
             payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
-            user_id = payload["sub"]
+            user_id = int(payload["sub"])
         except JWTError:
             raise HTTPException(status_code=401, detail="Invalid token")
 

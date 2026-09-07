@@ -16,9 +16,14 @@ jobs:
         env:
           POSTGRES_USER: app
           POSTGRES_PASSWORD: app
-          POSTGRES_DB: app
+          POSTGRES_DB: app_test
         ports:
           - 5432:5432
+
+    env:
+      DATABASE_URL: postgresql://app:app@localhost:5432/app_test
+      REDIS_URL: redis://localhost:6379/0
+      JWT_SECRET: ci-test-secret
 
     steps:
       - name: Checkout code
@@ -29,19 +34,28 @@ jobs:
         with:
           python-version: "3.11"
       
-      - run: pip install -r backend/requirements-dev.txt
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pre-commit
-          pip install ruff black isort pytest
+          pip install -r backend/requirements-dev.txt
+
+      - name: Wait for PostgreSQL
+        run: |
+          for attempt in {1..30}; do
+            pg_isready -h localhost -p 5432 -U app -d app_test && exit 0
+            sleep 1
+          done
+          exit 1
+
+      - name: Apply database migrations
+        working-directory: backend/app
+        run: python -m alembic upgrade head
       
       - run: ruff check backend
       - run: black --check backend
       - run: isort --check-only backend
 
-      - run: pytest backend
+      - run: pytest backend/app/tests
 
       - name: Build Docker image
         run: docker build -t backend ./backend
@@ -49,4 +63,30 @@ jobs:
       - name: Run pre-commit
         run: |
           pre-commit run --all-files
+
+  frontend-ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm test -- --watchAll=false
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
 

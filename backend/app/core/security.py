@@ -10,12 +10,16 @@ ALGORITHM = "HS256"
 
 def create_access_token(data: dict, expires_minutes=15):
     payload = data.copy()
+    if "sub" in payload:
+        payload["sub"] = str(payload["sub"])
     payload["exp"] = datetime.utcnow() + timedelta(minutes=expires_minutes)
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=ALGORITHM)
 
 
 def create_refresh_token(data: dict, expires_days=30):
     payload = data.copy()
+    if "sub" in payload:
+        payload["sub"] = str(payload["sub"])
     payload["exp"] = datetime.utcnow() + timedelta(days=expires_days)
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=ALGORITHM)
 

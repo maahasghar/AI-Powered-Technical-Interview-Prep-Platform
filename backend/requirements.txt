@@ -1,5 +1,5 @@
 alembic
-bcrypt
+bcrypt<4.1
 fastapi
 passlib
 psycopg2-binary
