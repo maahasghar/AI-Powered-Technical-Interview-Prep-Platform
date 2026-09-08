@@ -10,6 +10,7 @@ ALGORITHM = "HS256"
 
 def create_access_token(data: dict, expires_minutes=15):
     payload = data.copy()
+    payload["token_type"] = "access"
     if "sub" in payload:
         payload["sub"] = str(payload["sub"])
     payload["exp"] = datetime.now(timezone.utc) + timedelta(minutes=expires_minutes)
@@ -18,6 +19,7 @@ def create_access_token(data: dict, expires_minutes=15):
 
 def create_refresh_token(data: dict, expires_days=30):
     payload = data.copy()
+    payload["token_type"] = "refresh"
     if "sub" in payload:
         payload["sub"] = str(payload["sub"])
     payload["exp"] = datetime.now(timezone.utc) + timedelta(days=expires_days)

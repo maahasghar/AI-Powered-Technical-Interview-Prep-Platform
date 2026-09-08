@@ -21,7 +21,9 @@ class AuthToken(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), index=True)
-    refresh_token = Column(String, nullable=False, unique=True)
+    token_hash = Column(String, nullable=False, unique=True, index=True)
+    family_id = Column(String, nullable=False, index=True)
     expires_at = Column(DateTime(timezone=True))
     revoked = Column(Boolean, default=False)
+    replaced_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())

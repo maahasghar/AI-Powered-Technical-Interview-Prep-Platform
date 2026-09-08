@@ -2,6 +2,7 @@
 
 from app.domain.auth.repository import AuthRepository
 from app.domain.auth.service import AuthService
+from app.domain.auth.token_repository import AccountTokenRepository
 from app.domain.problems.repository import ProblemsRepository
 from app.domain.problems.service import ProblemsService
 from app.domain.submissions.repository import SubmissionsRepository
@@ -30,6 +31,7 @@ class Container:
         return AuthService(
             AuthRepository(database),
             UserRepository(database),
+            AccountTokenRepository(database),
             self.email_client,
         )
 

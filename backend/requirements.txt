@@ -1,5 +1,6 @@
 alembic
 bcrypt<4.1
+email-validator
 fastapi
 passlib
 psycopg2-binary

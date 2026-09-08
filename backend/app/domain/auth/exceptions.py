@@ -6,6 +6,10 @@ class InvalidCredentials(Exception):
     """Raised when email or password is incorrect"""
 
 
+class DuplicateEmail(Exception):
+    """Raised when registration attempts to reuse an email address"""
+
+
 class InvalidTokenError(Exception):
     """Raised when token is invalid or malformed"""
 

@@ -22,7 +22,7 @@ def test_register_route(client):
         json={"email": "new@example.com", "password": "password"},
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     assert response.json()["email"] == "new@example.com"
     assert response.json()["is_verified"] is False
 

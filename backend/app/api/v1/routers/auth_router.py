@@ -1,5 +1,6 @@
 from app.core.container import container
 from app.domain.auth.schemas import (
+    ForgotPasswordRequest,
     LoginRequest,
     LoginResponse,
     LogoutRequest,
@@ -7,11 +8,12 @@ from app.domain.auth.schemas import (
     RefreshRequest,
     RegisterRequest,
     RegisterResponse,
+    ResetPasswordRequest,
     TokenResponse,
 )
 from app.domain.auth.service import AuthService
 from app.infrastructure.db import get_db_session
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -30,7 +32,9 @@ def get_auth_service(
 # Each istance of dependency injection return the service instance, where the payload is passed to the service methods to handle the business logic of authentication, such as login, logout, registration, token refresh, and email verification.
 
 
-@router.post("/register", response_model=RegisterResponse)
+@router.post(
+    "/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED
+)
 def register(
     payload: RegisterRequest,
     auth_service: AuthService = Depends(get_auth_service),
@@ -63,13 +67,45 @@ def logout(
     return MessageResponse(message="Logged out successfully")
 
 
-@router.get("/verify")
-def verify_email(token: str, auth_service: AuthService = Depends(get_auth_service)):
+@router.get("/verify-email", response_model=MessageResponse)
+def verify_email(
+    token: str = Query(min_length=1),
+    auth_service: AuthService = Depends(get_auth_service),
+):
     auth_service.verify_email(token)
-    return {"message": "Email verified successfully"}
+    return MessageResponse(message="Email verified successfully")
 
 
-@router.get("/password-reset")
-def reset_password(token: str, auth_service: AuthService = Depends(get_auth_service)):
-    auth_service.reset_password(token)
-    return {"message": "Password reset successfully"}
+@router.post("/resend-verification", response_model=MessageResponse)
+def resend_verification(
+    payload: ForgotPasswordRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+):
+    auth_service.resend_verification(payload.email)
+    return MessageResponse(
+        message="If the account exists, a verification email was sent."
+    )
+
+
+@router.post(
+    "/forgot-password",
+    response_model=MessageResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def forgot_password(
+    payload: ForgotPasswordRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+):
+    auth_service.forgot_password(payload.email)
+    return MessageResponse(
+        message="If an account exists, a password reset email has been sent."
+    )
+
+
+@router.post("/reset-password", response_model=MessageResponse)
+def reset_password(
+    payload: ResetPasswordRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+):
+    auth_service.reset_password(payload)
+    return MessageResponse(message="Password reset successfully")

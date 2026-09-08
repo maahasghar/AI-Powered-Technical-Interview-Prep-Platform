@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from app.domain.auth.exceptions import DuplicateEmail
 from app.domain.auth.models import User
 from app.domain.user.models import UserProfile
+from sqlalchemy.exc import IntegrityError
 
 
 class UserRepository:
@@ -17,7 +19,11 @@ class UserRepository:
     def create_user(self, email: str, password_hash: str, is_verified: bool = False):
         user = User(email=email, password_hash=password_hash, is_verified=is_verified)
         self.db.add(user)
-        self.db.commit()
+        try:
+            self.db.commit()
+        except IntegrityError:
+            self.db.rollback()
+            raise DuplicateEmail() from None
         self.db.refresh(user)
         return user
 
