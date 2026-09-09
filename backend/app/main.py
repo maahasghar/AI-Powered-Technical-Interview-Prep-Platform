@@ -8,9 +8,15 @@ from app.core.config import settings
 from app.core.container import container
 from app.core.logging import RequestIDMiddleware, setup_logging
 from app.core.sentry import init_sentry
+from app.domain.auth.exceptions import (
+    EmailNotVerifiedError,
+    InvalidCredentials,
+    Unauthorized,
+)
 from app.infrastructure.db import engine
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 
@@ -34,6 +40,25 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+@app.exception_handler(InvalidCredentials)
+def invalid_credentials_handler(request, exc):
+    return JSONResponse(status_code=401, content={"detail": "Invalid credentials"})
+
+
+@app.exception_handler(EmailNotVerifiedError)
+def email_not_verified_handler(request, exc):
+    return JSONResponse(
+        status_code=403,
+        content={"detail": "Email verification required"},
+    )
+
+
+@app.exception_handler(Unauthorized)
+def unauthorized_handler(request, exc):
+    return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
+
 
 app.add_middleware(
     CORSMiddleware,

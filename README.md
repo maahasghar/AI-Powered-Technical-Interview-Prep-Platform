@@ -241,6 +241,37 @@ Over this month, the project intentionally emphasized:
 * Tooling used by professional teams
 
 
+## Problem bank workflow
+
+Problem routes require an access token in `Authorization: Bearer <token>`.
+Authenticated users can list active problems with `GET /api/v1/problems` and
+read one with `GET /api/v1/problems/{id}`. Category and difficulty filters combine
+with `skip`/`limit` pagination.
+
+Only admins can create (`POST /api/v1/problems`), update
+(`PATCH /api/v1/problems/{id}`), or archive (`DELETE /api/v1/problems/{id}`).
+DELETE sets `is_active=false`; it preserves the problem and its submissions.
+Admins can list archived entries with `?include_inactive=true`, read them by ID,
+and restore them with PATCH `{"is_active": true}`. Regular users receive 404
+for archived problem IDs. New submissions require an active problem; existing
+submissions remain available under the existing ownership rules.
+
+To migrate and seed, use a configured backend environment (Python 3.11 and the
+backend requirements installed). From the repository root:
+
+```sh
+cd backend/app
+python -m alembic upgrade head
+cd ..
+python -m app.scripts.seed_problems
+```
+
+The script inserts 15 problems spanning easy, medium, and hard difficulties,
+with descriptions and JSON test cases (`input` arguments and `expected` output).
+Stable unique seed keys make repeated and concurrent runs safe. Existing seed
+rows, admin edits, and archive state are preserved; custom problems are untouched.
+Seeding is an explicit maintenance command and does not run on server startup.
+
 ## Next Steps (Planned)
 
 * Add pytest + coverage reporting
@@ -250,4 +281,3 @@ Over this month, the project intentionally emphasized:
 * Deploy (Render / Fly.io / AWS)
 
 ---
-

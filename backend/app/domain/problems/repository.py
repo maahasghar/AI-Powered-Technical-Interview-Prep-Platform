@@ -8,14 +8,29 @@ class ProblemsRepository:
     def get_by_id(self, problem_id: int):
         return self.db.query(Problem).filter(Problem.id == problem_id).first()
 
-    def get_all(self, skip: int = 0, limit: int = 100):
-        return self.db.query(Problem).offset(skip).limit(limit).all()
+    def get_all(
+        self,
+        skip: int = 0,
+        limit: int = 100,
+        *,
+        difficulty=None,
+        category=None,
+        include_inactive: bool = False,
+    ):
+        query = self.db.query(Problem)
+        if not include_inactive:
+            query = query.filter(Problem.is_active.is_(True))
+        if difficulty is not None:
+            query = query.filter(Problem.difficulty == difficulty)
+        if category is not None:
+            query = query.filter(Problem.categories.any(category))
+        return query.order_by(Problem.id).offset(skip).limit(limit).all()
 
     def get_by_difficulty(self, difficulty: int):
-        return self.db.query(Problem).filter(Problem.difficulty == difficulty).all()
+        return self.get_all(difficulty=difficulty)
 
     def get_by_category(self, category: str):
-        return self.db.query(Problem).filter(Problem.categories.any(category)).all()
+        return self.get_all(category=category)
 
     def create(
         self,
@@ -46,9 +61,5 @@ class ProblemsRepository:
             self.db.refresh(problem)
         return problem
 
-    def delete(self, problem_id: int):
-        problem = self.get_by_id(problem_id)
-        if problem:
-            self.db.delete(problem)
-            self.db.commit()
-        return problem
+    def archive(self, problem_id: int):
+        return self.update(problem_id, is_active=False)

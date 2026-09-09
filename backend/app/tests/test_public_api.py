@@ -1,14 +1,16 @@
 from .conftest import auth_headers
 
 
-def test_list_problems_and_filter_by_category(client, problem_factory):
+def test_list_problems_and_filter_by_category(client, problem_factory, user_factory):
     problem_factory(categories=["two-pointers"])
     problem_factory(
         title="Window Maximum",
         categories=["sliding-window"],
     )
 
-    response = client.get("/api/v1/problems?category=two-pointers")
+    response = client.get(
+        "/api/v1/problems?category=two-pointers", headers=auth_headers(user_factory())
+    )
 
     assert response.status_code == 200
     assert len(response.json()) == 1

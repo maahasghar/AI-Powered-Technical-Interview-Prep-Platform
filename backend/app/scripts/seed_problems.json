@@ -1,0 +1,167 @@
+[
+  {
+    "seed_key": "pair-sum",
+    "title": "Pair Sum",
+    "difficulty": 1,
+    "categories": [
+      "arrays",
+      "hash-table"
+    ],
+    "description": "Given integer nums and target, return the two distinct indices whose values sum to target, in ascending index order. Exactly one pair exists. 2 <= len(nums) <= 10000.",
+    "test_cases": "[{\"input\": {\"nums\": [2, 7, 11, 15], \"target\": 9}, \"expected\": [0, 1]}, {\"input\": {\"nums\": [3, 3], \"target\": 6}, \"expected\": [0, 1]}]"
+  },
+  {
+    "seed_key": "balanced-brackets",
+    "title": "Balanced Brackets",
+    "difficulty": 1,
+    "categories": [
+      "strings",
+      "stack"
+    ],
+    "description": "Return whether s has correctly nested and matched (), [], and {} brackets. s contains only brackets and may be empty. len(s) <= 10000.",
+    "test_cases": "[{\"input\": {\"s\": \"([]){}\"}, \"expected\": true}, {\"input\": {\"s\": \"([)]\"}, \"expected\": false}, {\"input\": {\"s\": \"\"}, \"expected\": true}]"
+  },
+  {
+    "seed_key": "merge-sorted-arrays",
+    "title": "Merge Sorted Arrays",
+    "difficulty": 1,
+    "categories": [
+      "arrays",
+      "two-pointers"
+    ],
+    "description": "Return a sorted array containing every element of sorted integer arrays a and b, including duplicates. Either may be empty; combined length <= 10000.",
+    "test_cases": "[{\"input\": {\"a\": [1, 3], \"b\": [2, 3]}, \"expected\": [1, 2, 3, 3]}, {\"input\": {\"a\": [], \"b\": [4]}, \"expected\": [4]}]"
+  },
+  {
+    "seed_key": "best-single-trade",
+    "title": "Best Single Trade",
+    "difficulty": 1,
+    "categories": [
+      "arrays",
+      "greedy"
+    ],
+    "description": "Given nonnegative daily prices, return the maximum profit from buying once then selling on a later day. Return 0 if no profitable trade exists. 0 <= len(prices) <= 10000.",
+    "test_cases": "[{\"input\": {\"prices\": [7, 1, 5, 3, 6, 4]}, \"expected\": 5}, {\"input\": {\"prices\": [4, 3, 1]}, \"expected\": 0}, {\"input\": {\"prices\": []}, \"expected\": 0}]"
+  },
+  {
+    "seed_key": "binary-search",
+    "title": "Binary Search",
+    "difficulty": 1,
+    "categories": [
+      "arrays",
+      "binary-search"
+    ],
+    "description": "Given a strictly increasing integer array nums and target, return its index or -1 if absent. Use O(log n) time. nums may be empty; length <= 100000.",
+    "test_cases": "[{\"input\": {\"nums\": [-2, 0, 4, 8], \"target\": 4}, \"expected\": 2}, {\"input\": {\"nums\": [], \"target\": 3}, \"expected\": -1}]"
+  },
+  {
+    "seed_key": "longest-unique-window",
+    "title": "Longest Unique Window",
+    "difficulty": 2,
+    "categories": [
+      "strings",
+      "sliding-window"
+    ],
+    "description": "Return the length of the longest contiguous substring of s with no repeated characters. s contains ASCII characters; 0 <= len(s) <= 10000.",
+    "test_cases": "[{\"input\": {\"s\": \"abcabcbb\"}, \"expected\": 3}, {\"input\": {\"s\": \"bbbbb\"}, \"expected\": 1}, {\"input\": {\"s\": \"\"}, \"expected\": 0}]"
+  },
+  {
+    "seed_key": "merge-intervals",
+    "title": "Merge Intervals",
+    "difficulty": 2,
+    "categories": [
+      "arrays",
+      "sorting"
+    ],
+    "description": "Given closed integer intervals [start,end] with start <= end, merge overlapping or touching intervals and return them ordered by start. 0 <= len(intervals) <= 10000.",
+    "test_cases": "[{\"input\": {\"intervals\": [[1, 3], [2, 6], [8, 10]]}, \"expected\": [[1, 6], [8, 10]]}, {\"input\": {\"intervals\": [[1, 2], [2, 3]]}, \"expected\": [[1, 3]]}, {\"input\": {\"intervals\": []}, \"expected\": []}]"
+  },
+  {
+    "seed_key": "island-count",
+    "title": "Island Count",
+    "difficulty": 2,
+    "categories": [
+      "graphs",
+      "dfs"
+    ],
+    "description": "Given a rectangular grid of integer 0 (water) and 1 (land), return the number of islands connected horizontally or vertically. An empty grid has zero islands. At most 100 rows and 100 columns.",
+    "test_cases": "[{\"input\": {\"grid\": [[1, 1, 0], [0, 1, 0], [0, 0, 1]]}, \"expected\": 2}, {\"input\": {\"grid\": []}, \"expected\": 0}]"
+  },
+  {
+    "seed_key": "minimum-coins",
+    "title": "Minimum Coins",
+    "difficulty": 2,
+    "categories": [
+      "dynamic-programming"
+    ],
+    "description": "Given distinct positive integer coin denominations and a nonnegative amount, return the fewest coins needed, or -1 if impossible. Unlimited coins are available. amount <= 10000; 1 <= len(coins) <= 20.",
+    "test_cases": "[{\"input\": {\"coins\": [1, 2, 5], \"amount\": 11}, \"expected\": 3}, {\"input\": {\"coins\": [2], \"amount\": 3}, \"expected\": -1}, {\"input\": {\"coins\": [2], \"amount\": 0}, \"expected\": 0}]"
+  },
+  {
+    "seed_key": "course-feasibility",
+    "title": "Course Feasibility",
+    "difficulty": 2,
+    "categories": [
+      "graphs",
+      "topological-sort"
+    ],
+    "description": "Courses are numbered 0 through num_courses-1. Each prerequisite [a,b] means b must precede a. Return whether all courses can be completed. 1 <= num_courses <= 1000; at most 5000 prerequisite pairs.",
+    "test_cases": "[{\"input\": {\"num_courses\": 2, \"prerequisites\": [[1, 0]]}, \"expected\": true}, {\"input\": {\"num_courses\": 2, \"prerequisites\": [[1, 0], [0, 1]]}, \"expected\": false}]"
+  },
+  {
+    "seed_key": "tree-level-order",
+    "title": "Tree Level Order",
+    "difficulty": 2,
+    "categories": [
+      "trees",
+      "bfs"
+    ],
+    "description": "Given a binary tree as a level-order array root with null for missing children, return values grouped by level from left to right. Decode children in queue order for non-null nodes. [] is an empty tree; at most 1000 nodes.",
+    "test_cases": "[{\"input\": {\"root\": [3, 9, 20, null, null, 15, 7]}, \"expected\": [[3], [9, 20], [15, 7]]}, {\"input\": {\"root\": []}, \"expected\": []}]"
+  },
+  {
+    "seed_key": "kth-largest",
+    "title": "Kth Largest Element",
+    "difficulty": 2,
+    "categories": [
+      "arrays",
+      "heap"
+    ],
+    "description": "Return the kth largest integer in nums counting duplicate values separately. 1 <= k <= len(nums) <= 10000.",
+    "test_cases": "[{\"input\": {\"nums\": [3, 2, 1, 5, 6, 4], \"k\": 2}, \"expected\": 5}, {\"input\": {\"nums\": [2, 2, 1], \"k\": 2}, \"expected\": 2}]"
+  },
+  {
+    "seed_key": "trapped-water",
+    "title": "Trapped Rainwater",
+    "difficulty": 3,
+    "categories": [
+      "arrays",
+      "two-pointers"
+    ],
+    "description": "Given nonnegative bar heights of unit width, return the total units of water trapped between bars. 0 <= len(heights) <= 10000.",
+    "test_cases": "[{\"input\": {\"heights\": [0, 1, 0, 2, 1, 0, 1, 3, 2, 1, 2, 1]}, \"expected\": 6}, {\"input\": {\"heights\": [3, 2, 1]}, \"expected\": 0}, {\"input\": {\"heights\": []}, \"expected\": 0}]"
+  },
+  {
+    "seed_key": "window-maximum",
+    "title": "Sliding Window Maximum",
+    "difficulty": 3,
+    "categories": [
+      "arrays",
+      "sliding-window",
+      "deque"
+    ],
+    "description": "Return the maximum for each contiguous window of size k in nums, ordered by window start. 1 <= k <= len(nums) <= 10000. Aim for O(n) time.",
+    "test_cases": "[{\"input\": {\"nums\": [1, 3, -1, -3, 5, 3, 6, 7], \"k\": 3}, \"expected\": [3, 3, 5, 5, 6, 7]}, {\"input\": {\"nums\": [2, 1], \"k\": 1}, \"expected\": [2, 1]}]"
+  },
+  {
+    "seed_key": "edit-distance",
+    "title": "Edit Distance",
+    "difficulty": 3,
+    "categories": [
+      "strings",
+      "dynamic-programming"
+    ],
+    "description": "Return the minimum number of single-character insertions, deletions, and substitutions needed to transform source into target. Both strings contain lowercase English letters and have length <= 500.",
+    "test_cases": "[{\"input\": {\"source\": \"horse\", \"target\": \"ros\"}, \"expected\": 3}, {\"input\": {\"source\": \"\", \"target\": \"abc\"}, \"expected\": 3}, {\"input\": {\"source\": \"same\", \"target\": \"same\"}, \"expected\": 0}]"
+  }
+]

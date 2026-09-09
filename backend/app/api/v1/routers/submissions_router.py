@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from app.api.v1.routers.problems_router import get_problems_service
 from app.core.container import container
 from app.domain.auth.service import AuthService
+from app.domain.problems.service import ProblemsService
 from app.domain.submissions.schemas import SubmissionCreate, SubmissionResponse
 from app.domain.submissions.service import SubmissionsService
 from app.infrastructure.db import get_db_session
@@ -22,7 +24,11 @@ def create_submission(
     payload: SubmissionCreate,
     current_user=Depends(AuthService.get_current_user),
     submissions_service: SubmissionsService = Depends(get_submissions_service),
+    problems_service: ProblemsService = Depends(get_problems_service),
 ):
+    problem = problems_service.get_problem(payload.problem_id)
+    if problem is None or not problem.is_active:
+        raise HTTPException(status_code=404, detail="Problem not found")
     return submissions_service.create_submission(
         user_id=current_user.id,
         problem_id=payload.problem_id,

@@ -16,6 +16,7 @@ from app.domain.auth.exceptions import (  # InvalidTokenError,; TokenExpiredErro
     InvalidCredentials,
     Unauthorized,
 )
+from app.domain.auth.models import User
 from app.domain.auth.schemas import LoginRequest, RegisterRequest, ResetPasswordRequest
 from app.domain.user.repository import UserRepository
 from app.infrastructure.db import Database, get_db_session
@@ -96,14 +97,14 @@ class AuthService:
     def get_current_user(
         token: str = Depends(oauth2_scheme),
         session: Session = Depends(get_db_session),
-    ):
+    ) -> User:
         try:
             payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
             if payload.get("token_type") != "access":
-                raise HTTPException(status_code=401, detail="Invalid token")
-            user_id = int(payload["sub"])
-        except JWTError:
-            raise HTTPException(status_code=401, detail="Invalid token")
+                raise JWTError()
+            user_id = int(payload.get("sub"))
+        except (JWTError, TypeError, ValueError):
+            raise HTTPException(status_code=401, detail="Invalid token") from None
 
         user_repo = UserRepository(Database(session))
         user = user_repo.get_by_id(user_id)

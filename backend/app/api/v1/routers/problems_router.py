@@ -23,22 +23,29 @@ def list_problems(
     limit: int = Query(default=100, ge=1, le=100),
     difficulty: int | None = Query(default=None, ge=1, le=3),
     category: str | None = Query(default=None, min_length=1),
+    include_inactive: bool = False,
+    current_user=Depends(AuthService.get_current_user),
     problems_service: ProblemsService = Depends(get_problems_service),
 ):
-    if category is not None:
-        return problems_service.get_problems_by_category(category)
-    if difficulty is not None:
-        return problems_service.get_problems_by_difficulty(difficulty)
-    return problems_service.get_all_problems(skip=skip, limit=limit)
+    if include_inactive and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Forbidden")
+    return problems_service.get_all_problems(
+        skip=skip,
+        limit=limit,
+        difficulty=difficulty,
+        category=category,
+        include_inactive=include_inactive,
+    )
 
 
 @router.get("/{problem_id}", response_model=ProblemResponse)
 def get_problem(
     problem_id: int,
+    current_user=Depends(AuthService.get_current_user),
     problems_service: ProblemsService = Depends(get_problems_service),
 ):
     problem = problems_service.get_problem(problem_id)
-    if problem is None:
+    if problem is None or (not problem.is_active and current_user.role != "admin"):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Problem not found"
         )
@@ -83,12 +90,13 @@ def update_problem(
     "/{problem_id}",
     response_model=ProblemResponse,
     dependencies=[Depends(AuthService.require_role("admin"))],
+    summary="Archive a problem without deleting its submissions",
 )
-def delete_problem(
+def archive_problem(
     problem_id: int,
     problems_service: ProblemsService = Depends(get_problems_service),
 ):
-    problem = problems_service.delete_problem(problem_id)
+    problem = problems_service.archive_problem(problem_id)
     if problem is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Problem not found"
