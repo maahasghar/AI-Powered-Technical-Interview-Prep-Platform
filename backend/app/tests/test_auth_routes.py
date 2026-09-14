@@ -1,4 +1,11 @@
+import pytest
+
 from .conftest import auth_headers
+
+
+@pytest.fixture(autouse=True)
+def session_header(client):
+    client.headers["X-Session-Request"] = "1"
 
 
 def test_health_endpoint(client):
@@ -32,14 +39,13 @@ def test_register_route(client):
 
 def test_refresh_route(client, user_factory):
     user = user_factory()
-    login_response = client.post(
+    client.post(
         "/api/v1/auth/login",
         json={"email": user.email, "password": "password"},
     )
 
     response = client.post(
         "/api/v1/auth/refresh",
-        json={"refresh_token": login_response.json()["refresh_token"]},
     )
 
     assert response.status_code == 200
@@ -65,21 +71,21 @@ def test_refresh_token_rotates_and_reuse_revokes_family(client, user_factory):
         "/api/v1/auth/login",
         json={"email": user.email, "password": "password"},
     )
-    original_refresh_token = login_response.json()["refresh_token"]
+    original_refresh_token = login_response.cookies["refresh_token"]
 
     rotation_response = client.post(
         "/api/v1/auth/refresh",
-        json={"refresh_token": original_refresh_token},
+        headers={"Cookie": f"refresh_token={original_refresh_token}"},
     )
-    replacement_refresh_token = rotation_response.json()["refresh_token"]
+    replacement_refresh_token = rotation_response.cookies["refresh_token"]
 
     reused_response = client.post(
         "/api/v1/auth/refresh",
-        json={"refresh_token": original_refresh_token},
+        headers={"Cookie": f"refresh_token={original_refresh_token}"},
     )
     replacement_after_reuse_response = client.post(
         "/api/v1/auth/refresh",
-        json={"refresh_token": replacement_refresh_token},
+        headers={"Cookie": f"refresh_token={replacement_refresh_token}"},
     )
 
     assert rotation_response.status_code == 200
@@ -94,16 +100,49 @@ def test_logout_revokes_refresh_token_family(client, user_factory):
         "/api/v1/auth/login",
         json={"email": user.email, "password": "password"},
     )
-    refresh_token = login_response.json()["refresh_token"]
+    refresh_token = login_response.cookies["refresh_token"]
 
     logout_response = client.post(
         "/api/v1/auth/logout",
-        json={"refresh_token": refresh_token},
+        headers={"Cookie": f"refresh_token={refresh_token}"},
     )
     refresh_after_logout_response = client.post(
         "/api/v1/auth/refresh",
-        json={"refresh_token": refresh_token},
+        headers={"Cookie": f"refresh_token={refresh_token}"},
     )
 
     assert logout_response.status_code == 200
     assert refresh_after_logout_response.status_code == 401
+
+
+def test_cookie_contract(client, user_factory):
+    user_factory()
+    response = client.post(
+        "/api/v1/auth/login", json={"email": "test@example.com", "password": "password"}
+    )
+    assert "refresh_token" not in response.json()
+    cookie = response.headers["set-cookie"]
+    assert "HttpOnly" in cookie
+    assert "SameSite=lax" in cookie
+    assert "Path=/api/v1/auth" in cookie
+    assert response.headers["cache-control"] == "no-store"
+    logout = client.post("/api/v1/auth/logout")
+    assert "Max-Age=0" in logout.headers["set-cookie"]
+    assert client.post("/api/v1/auth/refresh").status_code == 401
+
+
+def test_session_routes_reject_csrf(client):
+    assert (
+        client.post(
+            "/api/v1/auth/refresh", headers={"Origin": "https://untrusted.example"}
+        ).status_code
+        == 403
+    )
+    del client.headers["X-Session-Request"]
+    assert client.post("/api/v1/auth/logout").status_code == 403
+
+
+def test_current_user_excludes_password(client, user_factory):
+    user = user_factory()
+    response = client.get("/api/v1/users/me", headers=auth_headers(user))
+    assert set(response.json()) == {"id", "email", "role", "is_verified"}

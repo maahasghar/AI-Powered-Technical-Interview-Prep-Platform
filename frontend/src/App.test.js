@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { AppRoutes } from "./App";
 import { AuthProvider } from "./auth";
+import { clearAuthentication } from "./api";
 const problem = {
   id: 1,
   title: "Pair Sum",
@@ -15,11 +16,14 @@ function response(data, status = 200) {
   return Promise.resolve({ ok: status < 400, status, json: async () => data });
 }
 function open(path, authenticated = false) {
-  if (authenticated)
-    sessionStorage.setItem(
-      "interview-session",
-      JSON.stringify({ access_token: "access", refresh_token: "refresh" }),
-    );
+  const handler = global.fetch;
+  global.fetch = jest.fn((url, options) => {
+    if (url.endsWith("/auth/refresh")) return authenticated
+      ? response({ access_token: "access", token_type: "bearer" })
+      : response({ detail: "Unauthorized" }, 401);
+    if (url.endsWith("/users/me")) return response({ id: 1, email: "user@example.com", role: "user", is_verified: true });
+    return handler(url, options);
+  });
   return render(
     <MemoryRouter
       initialEntries={[path]}
@@ -33,6 +37,7 @@ function open(path, authenticated = false) {
 }
 beforeEach(() => {
   sessionStorage.clear();
+  clearAuthentication();
   global.fetch = jest.fn();
 });
 afterEach(() => {
@@ -41,7 +46,7 @@ afterEach(() => {
 test("protected deep link returns to the editor after login and submits code", async () => {
   global.fetch.mockImplementation((url) => {
     if (url.endsWith("/auth/login"))
-      return response({ access_token: "access", refresh_token: "refresh" });
+      return response({ access_token: "access", token_type: "bearer" });
     if (url.endsWith("/problems/1")) return response(problem);
     if (url.endsWith("/submissions")) return response({ id: 9 });
     if (url.endsWith("/submissions/9"))
@@ -57,7 +62,7 @@ test("protected deep link returns to the editor after login and submits code", a
   });
   open("/problems/1/editor");
   expect(
-    screen.getByRole("heading", { name: "Welcome back" }),
+    await screen.findByRole("heading", { name: "Welcome back" }),
   ).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText("Email"), {
     target: { value: "user@example.com" },
@@ -83,7 +88,7 @@ test("protected deep link returns to the editor after login and submits code", a
     code: "print(1)",
     language: "python",
   });
-  expect(submissionCall[1].headers.Authorization).toBe("Bearer access");
+  expect(submissionCall[1].headers.get("Authorization")).toBe("Bearer access");
 });
 test("browsing applies difficulty filters and links to a problem", async () => {
   global.fetch.mockImplementation(() => response([problem]));
@@ -156,19 +161,45 @@ test("reset link uses token and new_password contract", async () => {
   });
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   await screen.findByRole("status");
-  expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toEqual({
+  expect(JSON.parse(global.fetch.mock.calls.find(([url]) => url.endsWith("/auth/reset-password"))[1].body)).toEqual({
     token: "reset-token",
     new_password: "newpassword",
   });
 });
-test("missing verification token prevents submission", () => {
-  open("/verify-email");
+test("missing verification token prevents submission", async () => {
+  await act(async () => { open("/verify-email"); });
   expect(screen.getByRole("button", { name: "Verify email" })).toBeDisabled();
-  expect(global.fetch).not.toHaveBeenCalled();
+  expect(global.fetch.mock.calls.every(([url]) => url.endsWith("/auth/refresh"))).toBe(true);
 });
-test("unknown route shows not found", () => {
-  open("/does-not-exist");
+test("unknown route shows not found", async () => {
+  await act(async () => { open("/does-not-exist"); });
   expect(
     screen.getByRole("heading", { name: "Page not found" }),
   ).toBeInTheDocument();
+});
+test("protected routes wait for startup restoration before rendering", async () => {
+  let finishRefresh;
+  global.fetch.mockImplementation(url => {
+    if (url.endsWith("/auth/refresh")) return new Promise(resolve => { finishRefresh = resolve; });
+    if (url.endsWith("/users/me")) return response({ id: 1, email: "user@example.com", role: "user", is_verified: true });
+    return response([problem]);
+  });
+  render(<MemoryRouter initialEntries={["/problems"]} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <AuthProvider><AppRoutes /></AuthProvider>
+  </MemoryRouter>);
+  expect(screen.getByRole("status")).toHaveTextContent("Restoring session");
+  expect(screen.queryByRole("heading", { name: "Welcome back" })).not.toBeInTheDocument();
+  await act(async () => {
+    await Promise.resolve();
+    finishRefresh(await response({ access_token: "restored", token_type: "bearer" }));
+  });
+  expect(await screen.findByRole("link", { name: /Pair Sum/ })).toBeInTheDocument();
+});
+test("startup with an invalid cookie redirects a protected route to login", async () => {
+  global.fetch.mockImplementation(() => response({ detail: "Unauthorized" }, 401));
+  render(<MemoryRouter initialEntries={["/history"]} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <AuthProvider><AppRoutes /></AuthProvider>
+  </MemoryRouter>);
+  expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeInTheDocument();
+  expect(global.fetch.mock.calls).toHaveLength(1);
 });

@@ -1,6 +1,6 @@
 from app.core.container import container
 from app.domain.auth.service import AuthService
-from app.domain.user.schemas import UserProfileUpdate
+from app.domain.user.schemas import UserProfileUpdate, UserResponse
 from app.infrastructure.db import get_db_session
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -12,7 +12,7 @@ def get_user_service(session: Session = Depends(get_db_session)):
     return container.get_user_service(session)
 
 
-@router.get("/me")
+@router.get("/me", response_model=UserResponse)
 def get_current_user(
     current_user=Depends(AuthService.get_current_user),
     user_service=Depends(get_user_service),

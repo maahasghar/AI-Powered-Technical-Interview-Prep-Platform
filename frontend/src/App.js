@@ -16,7 +16,7 @@ import { History, SubmissionResult } from "./pages/Submissions";
 import { ErrorMessage } from "./ui";
 import "./App.css";
 function Layout() {
-  const { session, logout } = useAuth();
+  const { user, logout } = useAuth();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   async function signOut() {
@@ -37,7 +37,7 @@ function Layout() {
           <span className="brand-icon">&gt;_</span> Interview Prep
         </Link>
         <nav aria-label="Main navigation">
-          {session ? (
+          {user ? (
             <>
               <NavLink to="/problems">Problems</NavLink>
               <NavLink to="/history">History</NavLink>

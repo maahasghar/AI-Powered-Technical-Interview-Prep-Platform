@@ -1,11 +1,11 @@
+from app.core.config import settings
 from app.core.container import container
+from app.domain.auth.exceptions import Unauthorized
 from app.domain.auth.schemas import (
     ForgotPasswordRequest,
     LoginRequest,
     LoginResponse,
-    LogoutRequest,
     MessageResponse,
-    RefreshRequest,
     RegisterRequest,
     RegisterResponse,
     ResetPasswordRequest,
@@ -13,7 +13,8 @@ from app.domain.auth.schemas import (
 )
 from app.domain.auth.service import AuthService
 from app.infrastructure.db import get_db_session
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -42,28 +43,103 @@ def register(
     return auth_service.register(payload)
 
 
-@router.post("/login", response_model=LoginResponse)
+COOKIE_NAME = "refresh_token"
+COOKIE_PATH = "/api/v1/auth"
+
+
+def require_session_request(request: Request):
+    # Custom headers cannot be sent by cross-site HTML forms. CORS controls
+    # browser preflights; additionally reject explicitly untrusted origins.
+    allowed = {
+        origin.strip().rstrip("/") for origin in settings.CORS_ORIGINS.split(",")
+    }
+    origin = request.headers.get("origin")
+    if request.headers.get("X-Session-Request") != "1" or (
+        origin and origin.rstrip("/") not in allowed
+    ):
+        raise HTTPException(status_code=403, detail="Invalid session request")
+
+
+def clear_cookie(response: Response):
+    response.delete_cookie(
+        COOKIE_NAME,
+        path=COOKIE_PATH,
+        httponly=True,
+        secure=settings.ENV != "dev",
+        samesite="lax",
+    )
+
+
+def token_response(tokens, response: Response):
+    response.set_cookie(
+        COOKIE_NAME,
+        tokens["refresh_token"],
+        max_age=30 * 24 * 60 * 60,
+        path=COOKIE_PATH,
+        httponly=True,
+        secure=settings.ENV != "dev",
+        samesite="lax",
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return {"access_token": tokens["access_token"], "token_type": "bearer"}
+
+
+@router.post(
+    "/login",
+    response_model=LoginResponse,
+    dependencies=[Depends(require_session_request)],
+)
 def login(
     payload: LoginRequest,
+    response: Response,
     auth_service: AuthService = Depends(get_auth_service),
 ):
-    return auth_service.login(payload)
+    return token_response(auth_service.login(payload), response)
 
 
-@router.post("/refresh", response_model=TokenResponse)
+@router.post(
+    "/refresh",
+    response_model=TokenResponse,
+    dependencies=[Depends(require_session_request)],
+)
 def refresh(
-    payload: RefreshRequest,
+    request: Request,
+    response: Response,
     auth_service: AuthService = Depends(get_auth_service),
 ):
-    return auth_service.refresh_access_token(payload.refresh_token)
+    token = request.cookies.get(COOKIE_NAME)
+    try:
+        if not token:
+            raise Unauthorized()
+        return token_response(auth_service.refresh_access_token(token), response)
+    except Unauthorized:
+        failure = JSONResponse(
+            status_code=401,
+            content={"detail": "Unauthorized"},
+            headers={"Cache-Control": "no-store"},
+        )
+        clear_cookie(failure)
+        return failure
 
 
-@router.post("/logout", response_model=MessageResponse)
+@router.post(
+    "/logout",
+    response_model=MessageResponse,
+    dependencies=[Depends(require_session_request)],
+)
 def logout(
-    payload: LogoutRequest,
+    request: Request,
+    response: Response,
     auth_service: AuthService = Depends(get_auth_service),
 ):
-    auth_service.logout(payload.refresh_token)
+    token = request.cookies.get(COOKIE_NAME)
+    if token:
+        try:
+            auth_service.logout(token)
+        except Unauthorized:
+            pass
+    clear_cookie(response)
+    response.headers["Cache-Control"] = "no-store"
     return MessageResponse(message="Logged out successfully")
 
 
