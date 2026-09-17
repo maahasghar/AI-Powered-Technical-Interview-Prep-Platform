@@ -13,3 +13,4 @@ sentry-sdk
 structlog
 SQLAlchemy
 uvicorn[standard]
+httpx

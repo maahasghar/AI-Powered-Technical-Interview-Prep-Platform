@@ -20,7 +20,14 @@ jobs:
         ports:
           - 5432:5432
 
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+
     env:
+      RUN_DOCKER_TESTS: "1"
+      RUN_REDIS_TESTS: "1"
       DATABASE_URL: postgresql://app:app@localhost:5432/app_test
       REDIS_URL: redis://localhost:6379/0
       JWT_SECRET: ci-test-secret
@@ -55,10 +62,18 @@ jobs:
       - run: black --check backend
       - run: isort --check-only backend
 
+      - name: Build isolated Python judge
+        run: docker build -t interview-judge-python:local backend/judge
+
       - run: pytest backend/app/tests
 
       - name: Build Docker image
         run: docker build -t backend ./backend
+
+      - name: Build worker and verify judge access
+        run: |
+          docker build -f backend/Dockerfile.worker -t interview-judge-worker:test backend
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock --entrypoint python interview-judge-worker:test -c 'from app.judge.docker_runner import DockerRunner; assert DockerRunner().run_case("def solve(): return 1", {}).actual == 1'
 
       - name: Run pre-commit
         run: |

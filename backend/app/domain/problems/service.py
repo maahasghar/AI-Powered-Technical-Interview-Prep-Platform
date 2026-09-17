@@ -21,9 +21,10 @@ class ProblemsService:
         categories: list,
         description: str,
         test_cases: str,
+        hidden_test_cases: str = "[]",
     ):
         return self.problems_repo.create(
-            title, difficulty, categories, description, test_cases
+            title, difficulty, categories, description, test_cases, hidden_test_cases
         )
 
     def update_problem(self, problem_id: int, **kwargs):

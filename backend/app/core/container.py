@@ -12,6 +12,7 @@ from app.domain.user.service import UserService
 from app.infrastructure.db import Database
 from app.infrastructure.email_client import EmailClient
 from app.infrastructure.redis import RedisClient
+from app.infrastructure.submission_queue import SubmissionQueue
 from sqlalchemy.orm import Session
 
 # The container owns shared infrastructure clients and builds services with their dependencies.
@@ -45,7 +46,9 @@ class Container:
 
     def get_submissions_service(self, session: Session):
         database = Database(session)
-        return SubmissionsService(SubmissionsRepository(database))
+        return SubmissionsService(
+            SubmissionsRepository(database), SubmissionQueue(self.redis.client)
+        )
 
 
 # Create a single global container instance

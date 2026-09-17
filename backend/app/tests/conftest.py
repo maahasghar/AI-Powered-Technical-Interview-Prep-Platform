@@ -39,7 +39,13 @@ def db_session(test_engine):
 
 
 @pytest.fixture
-def client(db_session):
+def client(db_session, monkeypatch):
+    from unittest.mock import Mock
+
+    from app.core.container import container
+
+    monkeypatch.setattr(container.redis.client, "zadd", Mock(return_value=1))
+
     def override_get_db_session():
         yield db_session
 

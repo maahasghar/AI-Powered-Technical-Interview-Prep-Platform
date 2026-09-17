@@ -281,3 +281,8 @@ Seeding is an explicit maintenance command and does not run on server startup.
 * Deploy (Render / Fly.io / AWS)
 
 ---
+
+## Python judge
+
+Submissions run asynchronously through Redis and a separate Docker judge worker.
+See [setup, limits, and test instructions](docs/submission_execution.md).

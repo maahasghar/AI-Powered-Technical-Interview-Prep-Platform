@@ -15,6 +15,43 @@ services:
     ports:
       - "8000:8000"
 
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://app:app@postgres:5432/app
+      REDIS_URL: redis://redis:6379/0
+      JUDGE_IMAGE: interview-judge-python:local
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  feedback-worker:
+    build: ./backend
+    command: ["python", "-m", "app.feedback.worker"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://app:app@postgres:5432/app
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  judge-image:
+    profiles: ["judge-build"]
+    build: ./backend/judge
+    image: interview-judge-python:local
+
   frontend:
     build: ./frontend
     ports:
@@ -41,6 +78,9 @@ services:
 
   redis:
     image: redis:7
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
     ports:
       - "6379:6379"
     healthcheck:
@@ -51,3 +91,4 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:

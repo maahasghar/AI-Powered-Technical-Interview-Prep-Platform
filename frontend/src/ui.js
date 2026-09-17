@@ -1,23 +1,32 @@
 import { useEffect, useState } from "react";
 import { api } from "./api";
-export function useResource(path) {
+export function useResource(path, pollSubmission = false) {
   const [state, setState] = useState({ data: null, loading: true, error: "" });
   const [version, setVersion] = useState(0);
   useEffect(() => {
     let active = true;
+    let timer;
+    const controller = new AbortController();
     setState({ data: null, loading: true, error: "" });
-    api(path)
-      .then((data) => {
-        if (active) setState({ data, loading: false, error: "" });
-      })
-      .catch((error) => {
-        if (active)
-          setState({ data: null, loading: false, error: error.message });
-      });
+    async function load() {
+      try {
+        const data = await api(path, { signal: controller.signal });
+        if (!active) return;
+        setState({ data, loading: false, error: "" });
+        if (pollSubmission && ["QUEUED", "RUNNING"].includes(data.status)) {
+          timer = setTimeout(load, 2000);
+        }
+      } catch (error) {
+        if (active) setState(previous => ({ ...previous, loading: false, error: error.message }));
+      }
+    }
+    load();
     return () => {
       active = false;
+      clearTimeout(timer);
+      controller.abort();
     };
-  }, [path, version]);
+  }, [path, version, pollSubmission]);
   return { ...state, reload: () => setVersion((value) => value + 1) };
 }
 export function ErrorMessage({ children }) {
@@ -53,8 +62,8 @@ export function Difficulty({ value }) {
 }
 export function Status({ value }) {
   return (
-    <span className={`badge ${value === "accepted" ? "difficulty-1" : ""}`}>
-      {(value || "pending").replaceAll("_", " ")}
+    <span className={`badge ${value === "PASSED" ? "difficulty-1" : ""}`}>
+      {(value || "QUEUED").toLowerCase().replaceAll("_", " ")}
     </span>
   );
 }

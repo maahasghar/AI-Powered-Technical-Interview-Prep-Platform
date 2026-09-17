@@ -1,5 +1,6 @@
+import FeedbackPanel from "../FeedbackPanel";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { Pagination, pretty, ResourceState, Status, useResource } from "../ui";
+import { Pagination, ResourceState, Status, useResource } from "../ui";
 export function History() {
   const [params, setParams] = useSearchParams();
   const page = Math.max(0, Number.parseInt(params.get("page"), 10) || 0);
@@ -73,11 +74,12 @@ export function SubmissionResult() {
   const { submissionId } = useParams();
   const resource = useResource(
     `/submissions/${encodeURIComponent(submissionId)}`,
+    true,
   );
   if (resource.loading || resource.error)
     return <ResourceState resource={resource} />;
   const submission = resource.data;
-  const pending = ["pending", "running", "queued"].includes(submission.status);
+  const pending = ["QUEUED", "RUNNING"].includes(submission.status);
   return (
     <>
       <Link to="/history">← Submission history</Link>
@@ -95,17 +97,29 @@ export function SubmissionResult() {
         </div>
         <h2>Result</h2>
         {submission.result ? (
-          <pre>{pretty(submission.result)}</pre>
+          <div>
+            <p role="status">{submission.result.message}</p>
+            <dl>
+              <dt>Tests passed</dt>
+              <dd>{submission.result.tests_passed != null && submission.result.tests_total != null
+                ? `${submission.result.tests_passed} / ${submission.result.tests_total}` : "Unavailable"}</dd>
+              <dt>Runtime</dt>
+              <dd>{submission.result.runtime_ms != null ? `${submission.result.runtime_ms.toFixed(1)} ms` : "Unavailable"}</dd>
+              <dt>Memory usage</dt>
+              <dd>{submission.result.memory_bytes != null ? `${(submission.result.memory_bytes / 1024 / 1024).toFixed(2)} MiB (sampled)` : "Unavailable"}</dd>
+            </dl>
+          </div>
         ) : (
           <p role="status" className="muted">
             {pending
-              ? "Your submission has been saved. Evaluation results are not available yet."
+              ? "Your submission is being evaluated. Results update automatically."
               : "No result details are available."}
           </p>
         )}
         <h2>Submitted code</h2>
         <pre className="submitted-code">{submission.code}</pre>
       </section>
+      {!pending && <FeedbackPanel key={submission.id} submissionId={submission.id} />}
     </>
   );
 }

@@ -18,6 +18,7 @@ function response(data, status = 200) {
 function open(path, authenticated = false) {
   const handler = global.fetch;
   global.fetch = jest.fn((url, options) => {
+    if (url.endsWith("/feedback")) return response({ eligible: false, items: [] });
     if (url.endsWith("/auth/refresh")) return authenticated
       ? response({ access_token: "access", token_type: "bearer" })
       : response({ detail: "Unauthorized" }, 401);
@@ -55,7 +56,7 @@ test("protected deep link returns to the editor after login and submits code", a
         problem_id: 1,
         code: "print(1)",
         language: "python",
-        status: "pending",
+        status: "QUEUED",
         result: null,
       });
     throw new Error(`Unexpected URL ${url}`);
@@ -78,7 +79,7 @@ test("protected deep link returns to the editor after login and submits code", a
   fireEvent.click(screen.getByRole("button", { name: "Submit solution" }));
   await screen.findByRole("heading", { name: "Submission #9" });
   expect(
-    screen.getByText(/Evaluation results are not available yet/),
+    screen.getByText(/Results update automatically/),
   ).toBeInTheDocument();
   const submissionCall = global.fetch.mock.calls.find(([url]) =>
     url.endsWith("/submissions"),
@@ -111,7 +112,7 @@ test("history links to result and displays backend status", async () => {
     ok: true,
     status: 200,
     json: async () => [
-      { id: 8, problem_id: 1, language: "python", status: "accepted" },
+      { id: 8, problem_id: 1, language: "python", status: "PASSED" },
     ],
   });
   open("/history", true);
@@ -119,7 +120,7 @@ test("history links to result and displays backend status", async () => {
     "href",
     "/submissions/8",
   );
-  expect(screen.getByText("accepted")).toBeInTheDocument();
+  expect(screen.getByText("passed")).toBeInTheDocument();
 });
 test("failed requests show retry and recover", async () => {
   global.fetch
@@ -202,4 +203,19 @@ test("startup with an invalid cookie redirects a protected route to login", asyn
   </MemoryRouter>);
   expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeInTheDocument();
   expect(global.fetch.mock.calls).toHaveLength(1);
+});
+
+test("submission results render only candidate fields", async () => {
+  global.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({
+    id: 9, problem_id: 1, language: "python", code: "def solve(): pass", status: "FAILED",
+    result: { message: "Your solution did not pass all tests.", tests_passed: 1,
+      tests_total: 3, runtime_ms: 12.5, memory_bytes: 1048576,
+      diagnostics: "HIDDEN_SENTINEL", hidden_tests: ["HIDDEN_SENTINEL"] },
+  }) });
+  open("/submissions/9", true);
+  expect(await screen.findByText("Your solution did not pass all tests.")).toBeInTheDocument();
+  expect(screen.getByText("1 / 3")).toBeInTheDocument();
+  expect(screen.getByText("12.5 ms")).toBeInTheDocument();
+  expect(screen.getByText("1.00 MiB (sampled)")).toBeInTheDocument();
+  expect(screen.queryByText(/HIDDEN_SENTINEL/)).not.toBeInTheDocument();
 });

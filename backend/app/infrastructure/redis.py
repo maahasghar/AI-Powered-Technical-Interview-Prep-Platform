@@ -6,7 +6,12 @@ from app.core.config import settings
 
 class RedisClient:
     def __init__(self):
-        self.client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        self.client = redis.from_url(
+            settings.REDIS_URL,
+            decode_responses=True,
+            socket_connect_timeout=2,
+            socket_timeout=5,
+        )
 
     def get(self, key: str):
         return self.client.get(key)

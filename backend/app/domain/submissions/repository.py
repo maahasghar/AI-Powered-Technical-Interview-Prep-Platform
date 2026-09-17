@@ -35,7 +35,7 @@ class SubmissionsRepository:
         problem_id: int,
         code: str,
         language: str,
-        status: str = "pending",
+        status: str = "QUEUED",
     ):
         submission = Submission(
             user_id=user_id,

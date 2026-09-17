@@ -1,5 +1,6 @@
 """Run from backend with: python -m app.scripts.seed_problems."""
 
+import argparse
 import json
 from pathlib import Path
 
@@ -41,8 +42,21 @@ def seed_problems(session: Session) -> int:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--backfill-hidden",
+        action="store_true",
+        help="Add hidden tests to existing seeds whose hidden test list is empty",
+    )
+    args = parser.parse_args()
     with SessionLocal.begin() as session:
         count = seed_problems(session)
+        if args.backfill_hidden:
+            for seed in load_problems():
+                session.query(Problem).filter(
+                    Problem.seed_key == seed["seed_key"],
+                    Problem.hidden_test_cases == "[]",
+                ).update({"hidden_test_cases": seed["hidden_test_cases"]})
     print(f"Inserted {count} seed problems; existing seeds were preserved.")
 
 

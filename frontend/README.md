@@ -58,13 +58,19 @@ tabs are not implemented.
 
 Registration requires email verification before login.
 
-The editor submits code to the existing API; it does not execute code in the browser.
-The backend currently saves attempts as pending. The result page displays the actual
-backend status and offers manual refresh. Admin history follows the existing API's
-behavior and includes all users' submissions. Archived problem links may return 404
-for regular users, while their saved submission code remains readable.
+The editor accepts Python 3.11 solutions implementing `solve(...)`. Submissions
+are queued for an isolated Docker judge and the result page polls automatically
+until evaluation finishes. Sample tests are visible; hidden judge tests are never
+returned by the API. See [submission execution](../docs/submission_execution.md)
+for the solution contract, limits, and worker setup. Archived problems cannot
+accept new submissions, while saved submission code remains readable.
 
 Run `CI=true npm test -- --watchAll=false --runInBand` for route/API tests and
 `npm run typecheck` for client contract checks, and `npm run build` for a production bundle. Production hosting must serve `index.html`
 for non-API paths so direct links and browser refresh work with BrowserRouter.
 Routing uses [React Router's declarative routes](https://reactrouter.com/docs/en/v6/start/concepts).
+
+Submission results use a typed object containing a safe message, aggregate test
+counts, runtime in milliseconds, and sampled memory in bytes. The result view
+renders those fields explicitly; it does not dump arbitrary judge JSON. Missing
+measurements are shown as Unavailable.

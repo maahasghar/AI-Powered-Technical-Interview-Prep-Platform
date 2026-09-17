@@ -9,7 +9,12 @@ import {
   useResource,
 } from "../ui";
 function Editor({ problem }) {
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(() => {
+    try {
+      const args = Object.keys(JSON.parse(problem.test_cases)[0]?.input || {});
+      return `def solve(${args.length ? args.join(", ") : "**kwargs"}):\n    # Return your answer as a JSON-compatible value.\n    raise NotImplementedError\n`;
+    } catch { return "def solve(**kwargs):\n    raise NotImplementedError\n"; }
+  });
   const [language, setLanguage] = useState("python");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -39,13 +44,11 @@ function Editor({ problem }) {
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
           >
-            <option value="python">Python</option>
-            <option value="javascript">JavaScript</option>
-            <option value="java">Java</option>
-            <option value="cpp">C++</option>
+            <option value="python">Python 3.11</option>
           </select>
         </label>
       </div>
+      <p>Implement <code>solve(...)</code> using the sample input keys as argument names. Return your answer; hidden tests also run.</p>
       <label className="code-label" htmlFor="code">
         Code
       </label>
@@ -100,7 +103,7 @@ export default function ProblemDetail() {
               </span>
             ))}
           </div>
-          <h2>Test cases</h2>
+          <h2>Sample tests</h2>
           <pre>{pretty(problem.test_cases)}</pre>
         </section>
         <Editor key={problem.id} problem={problem} />

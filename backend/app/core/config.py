@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings
 
 
@@ -8,6 +9,8 @@ class Settings(BaseSettings):
     REDIS_URL: str
     JWT_SECRET: str
     ENV: str = "dev"
+    OPENAI_API_KEY: SecretStr = SecretStr("")
+    FEEDBACK_MODEL: str = ""
     SENTRY_DSN: str = ""
     CORS_ORIGINS: str = "http://localhost:3000"
     FRONTEND_URL: str = "http://localhost:3000"

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, model_validator
+from app.domain.problems.judge_cases import parse_cases
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class ProblemBase(BaseModel):
@@ -12,7 +13,13 @@ class ProblemBase(BaseModel):
 
 
 class ProblemCreate(ProblemBase):
-    pass
+    hidden_test_cases: str = "[]"
+
+    @field_validator("test_cases", "hidden_test_cases")
+    @classmethod
+    def validate_cases(cls, value):
+        parse_cases(value)
+        return value
 
 
 class ProblemUpdate(BaseModel):
@@ -22,6 +29,14 @@ class ProblemUpdate(BaseModel):
     categories: list[str] | None = None
     description: str | None = None
     test_cases: str | None = None
+    hidden_test_cases: str | None = None
+
+    @field_validator("test_cases", "hidden_test_cases")
+    @classmethod
+    def validate_cases(cls, value):
+        if value is not None:
+            parse_cases(value)
+        return value
 
     @model_validator(mode="after")
     def reject_explicit_nulls(self):

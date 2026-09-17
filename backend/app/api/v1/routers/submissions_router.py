@@ -4,9 +4,21 @@ from app.api.v1.routers.problems_router import get_problems_service
 from app.core.container import container
 from app.domain.auth.service import AuthService
 from app.domain.problems.service import ProblemsService
+from app.domain.submissions.models import Submission
 from app.domain.submissions.schemas import SubmissionCreate, SubmissionResponse
 from app.domain.submissions.service import SubmissionsService
+from app.feedback.models import Feedback
+from app.feedback.policy import judge_ready
+from app.feedback.service import (
+    FEEDBACK_QUEUE,
+    FeedbackList,
+    FeedbackRequest,
+    FeedbackResponse,
+    public_feedback,
+    request_feedback,
+)
 from app.infrastructure.db import get_db_session
+from app.infrastructure.submission_queue import SubmissionQueue
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
@@ -34,7 +46,7 @@ def create_submission(
         problem_id=payload.problem_id,
         code=payload.code,
         language=payload.language,
-        status="pending",
+        status="QUEUED",
     )
 
 
@@ -122,3 +134,41 @@ def delete_submission(
 
     deleted_submission = submissions_service.delete_submission(submission_id)
     return deleted_submission
+
+
+@router.get("/{submission_id}/feedback", response_model=FeedbackList)
+def get_feedback(
+    submission_id: int,
+    current_user=Depends(AuthService.get_current_user),
+    session: Session = Depends(get_db_session),
+):
+    submission = session.get(Submission, submission_id)
+    if submission is None:
+        raise HTTPException(404, "Submission not found")
+    if submission.user_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(403, "Forbidden")
+    eligible = judge_ready(submission)
+    rows = (
+        session.query(Feedback)
+        .filter_by(submission_id=submission_id)
+        .order_by(Feedback.id)
+        .all()
+        if eligible
+        else []
+    )
+    return FeedbackList(eligible=eligible, items=[public_feedback(row) for row in rows])
+
+
+@router.post(
+    "/{submission_id}/feedback", response_model=FeedbackResponse, status_code=202
+)
+def create_feedback(
+    submission_id: int,
+    payload: FeedbackRequest,
+    current_user=Depends(AuthService.get_current_user),
+    session: Session = Depends(get_db_session),
+):
+    row = request_feedback(session, submission_id, current_user.id, payload.action)
+    if row.status == "QUEUED":
+        SubmissionQueue(container.redis.client, FEEDBACK_QUEUE).enqueue(row.id)
+    return public_feedback(row)

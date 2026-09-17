@@ -11,27 +11,51 @@ export interface Problem {
   id: number; title: string; difficulty: number; categories: string[];
   description: string; test_cases: string; is_active: boolean;
 }
-export interface SubmissionInput { problem_id: number; code: string; language?: string }
+export type SubmissionStatus = "QUEUED" | "RUNNING" | "PASSED" | "FAILED" | "RUNTIME_ERROR" | "TIME_LIMIT_EXCEEDED";
+export interface SubmissionInput { problem_id: number; code: string; language?: "python" }
+export interface FeedbackItem {
+  id: number;
+  stage: "DIAGNOSIS" | "HINT" | "SOLUTION";
+  status: "QUEUED" | "RUNNING" | "READY" | "FAILED";
+  feedback: StructuredFeedback | null;
+  error: string | null;
+}
+export interface StructuredFeedback {
+  strengths: string[];
+  likely_issue: string | null;
+  hint: string | null;
+  complexity: { time: string; space: string };
+  next_step: string;
+}
+export interface FeedbackList { eligible: boolean; items: FeedbackItem[] }
+export interface SubmissionResult {
+  message: string;
+  tests_passed: number | null;
+  tests_total: number | null;
+  runtime_ms: number | null;
+  memory_bytes: number | null;
+}
 export interface Submission extends SubmissionInput {
-  id: number; user_id: number; language: string; status: string;
-  result: string | null; created_at: string | null; updated_at: string | null;
+  id: number; user_id: number; language: "python"; status: SubmissionStatus;
+  result: SubmissionResult | null; created_at: string | null; updated_at: string | null;
 }
 interface Message { message: string }
 interface Registration { email: string; password: string; full_name?: string | null; bio?: string | null; avatar_url?: string | null }
 type WithQuery<P extends string> = P | `${P}?${string}`;
-type GetPath = "/users/me" | WithQuery<"/problems"> | `/problems/${number}` |
+type GetPath = `/submissions/${number}/feedback` | "/users/me" | WithQuery<"/problems"> | `/problems/${number}` |
   WithQuery<"/submissions/me"> | `/submissions/${number}` | `/auth/verify-email?token=${string}`;
-type GetResponse<P extends GetPath> = P extends "/users/me" ? User :
+type GetResponse<P extends GetPath> = P extends `/submissions/${number}/feedback` ? FeedbackList : P extends "/users/me" ? User :
   P extends WithQuery<"/problems"> ? Problem[] : P extends `/problems/${number}` ? Problem :
   P extends WithQuery<"/submissions/me"> ? Submission[] : P extends `/submissions/${number}` ? Submission : Message;
 interface PostBodies {
+  [path: `/submissions/${number}/feedback`]: { action: "diagnosis" | "hint" | "show_solution" };
   "/submissions": SubmissionInput;
   "/auth/register": Registration;
   "/auth/forgot-password": { email: string };
   "/auth/resend-verification": { email: string };
   "/auth/reset-password": { token: string; new_password: string };
 }
-type PostResponse<P extends keyof PostBodies> = P extends "/submissions" ? Submission :
+type PostResponse<P extends keyof PostBodies> = P extends `/submissions/${number}/feedback` ? FeedbackItem : P extends "/submissions" ? Submission :
   P extends "/auth/register" ? { id: number; email: string; is_verified: boolean } : Message;
 type Options = Omit<RequestInit, "body"> & { body?: unknown };
 export class ApiError extends Error {

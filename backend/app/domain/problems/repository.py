@@ -39,6 +39,7 @@ class ProblemsRepository:
         categories: list,
         description: str,
         test_cases: str,
+        hidden_test_cases: str = "[]",
     ):
         problem = Problem(
             title=title,
@@ -46,6 +47,7 @@ class ProblemsRepository:
             categories=categories,
             description=description,
             test_cases=test_cases,
+            hidden_test_cases=hidden_test_cases,
         )
         self.db.add(problem)
         self.db.commit()

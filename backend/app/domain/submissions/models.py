@@ -12,10 +12,11 @@ class Submission(Base):
         Integer, ForeignKey("problem_bank.id"), index=True, nullable=False
     )
     code = Column(Text, nullable=False)
-    language = Column(String, nullable=False)  # python, javascript, java, etc.
+    language = Column(String, nullable=False)
     status = Column(
-        String, default="pending"
-    )  # pending, accepted, rejected, runtime_error, time_limit_exceeded
+        String, nullable=False, default="QUEUED", server_default="QUEUED", index=True
+    )
+    execution_id = Column(String, nullable=True)
     result = Column(Text)  # JSON string with test results
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(

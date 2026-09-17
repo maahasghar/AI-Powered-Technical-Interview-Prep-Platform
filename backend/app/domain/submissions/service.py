@@ -1,6 +1,7 @@
 class SubmissionsService:
-    def __init__(self, submissions_repo):
+    def __init__(self, submissions_repo, queue):
         self.submissions_repo = submissions_repo
+        self.queue = queue
 
     def get_submission(self, submission_id: int):
         return self.submissions_repo.get_by_id(submission_id)
@@ -20,9 +21,15 @@ class SubmissionsService:
         problem_id: int,
         code: str,
         language: str,
-        status: str = "pending",
+        status: str = "QUEUED",
     ):
-        return self.submissions_repo.create(user_id, problem_id, code, language, status)
+        submission = self.submissions_repo.create(
+            user_id, problem_id, code, language, status
+        )
+        # The committed QUEUED row is also the durable dispatch record. The worker
+        # reconciles it if Redis is unavailable or the API dies before enqueue.
+        self.queue.enqueue(submission.id)
+        return submission
 
     def update_submission(self, submission_id: int, **kwargs):
         return self.submissions_repo.update(submission_id, **kwargs)

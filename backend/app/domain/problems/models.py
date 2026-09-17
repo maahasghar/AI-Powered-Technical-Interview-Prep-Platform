@@ -12,4 +12,5 @@ class Problem(Base):
     difficulty = Column(Integer, index=True)  # 1=Easy,2=Medium,3=Hard
     categories = Column(ARRAY(String))
     description = Column(Text)
-    test_cases = Column(Text)  # JSON string
+    test_cases = Column(Text)  # Visible sample tests, encoded as JSON
+    hidden_test_cases = Column(Text, nullable=False, default="[]", server_default="[]")

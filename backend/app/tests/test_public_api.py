@@ -77,7 +77,7 @@ def test_user_can_create_and_list_own_submissions(
     )
 
     assert create_response.status_code == 201
-    assert create_response.json()["status"] == "pending"
+    assert create_response.json()["status"] == "QUEUED"
     assert list_response.status_code == 200
     assert len(list_response.json()) == 1
 
