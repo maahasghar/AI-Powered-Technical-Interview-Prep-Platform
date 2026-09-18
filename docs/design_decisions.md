@@ -42,3 +42,17 @@ Create a dedicated FeedbackContext as an allowlisted data contract for AI feedba
 Require structured output with strengths, likely issue, hint, complexity, and next step. Validate it before saving.
 
 AI feedback will use a predefined structured schema containing strengths, likely_issue, hint, complexity (time and space), and next_step. likely_issue and hint may be null when no meaningful issue exists, such as for an accepted solution. The model response will be validated against a Pydantic schema before persistence, with reasonable field lengths and list limits. Invalid responses will not be stored; the system may retry generation once before marking feedback as failed. Feedback failure will remain independent from the deterministic judge result. Valid feedback will be stored as structured data rather than pre-rendered Markdown/text so presentation remains the responsibility of the frontend.
+
+Add prompt/version/model metadata, timeouts, retries, rate limits, cost tracking, and a non-AI fallback
+
+AI feedback will be treated as an external, fallible dependency. Each generated feedback record will include model, prompt version, schema version, and generation metadata for traceability. AI calls will have an explicit timeout and bounded retries with backoff only for transient failures; permanent errors will not be retried. Application-level rate limits and duplicate-generation protection will prevent abuse and uncontrolled API spending. Token usage and estimated cost will be recorded for monitoring and budgeting. If AI generation remains unavailable, the system will fall back to deterministic guidance derived from the judge verdict rather than failing the submission. AI-specific configuration and reliability logic will be centralized in a feedback service rather than scattered across API routes.
+
+Evaluate feedback on a small fixed dataset before enabling it broadly.
+
+LLM behavior is nondeterministic and can change when the prompt, model, parameters, or surrounding pipeline changes. The fixed feedback regression suite in `backend/app/feedback/evaluation.py` covers diagnosis, hint, and solution stages across passed, failed, and runtime-error submissions. It validates the structured schema, stage-specific restrictions, and forbidden-content rules.
+
+Run it before rollout:
+
+	PYTHONPATH=backend python -m app.scripts.evaluate_feedback --report feedback-evaluation-report.json
+
+Review the report and enable AI only when every case passes by setting `FEEDBACK_AI_ENABLED=true` and `FEEDBACK_EVALUATION_PASSED=true`. Rerun the suite whenever the model, prompt version, parameters, or feedback pipeline changes; keep AI disabled when the suite fails so deterministic fallback guidance remains active.

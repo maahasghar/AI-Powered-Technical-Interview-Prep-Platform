@@ -168,7 +168,9 @@ def create_feedback(
     current_user=Depends(AuthService.get_current_user),
     session: Session = Depends(get_db_session),
 ):
-    row = request_feedback(session, submission_id, current_user.id, payload.action)
-    if row.status == "QUEUED":
+    row, should_enqueue = request_feedback(
+        session, submission_id, current_user.id, payload.action
+    )
+    if should_enqueue:
         SubmissionQueue(container.redis.client, FEEDBACK_QUEUE).enqueue(row.id)
     return public_feedback(row)

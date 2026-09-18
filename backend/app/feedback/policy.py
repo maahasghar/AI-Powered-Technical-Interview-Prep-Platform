@@ -78,6 +78,32 @@ class FeedbackContext(BaseModel):
     error_message: str | None = Field(default=None, max_length=500)
 
 
+def deterministic_feedback(stage, context: FeedbackContext):
+    if context.verdict == "PASSED":
+        strengths = ["The submission passed the deterministic judge tests."]
+        issue = None
+        next_step = "Review the passing solution for clarity and consider whether its complexity can be improved."
+    elif context.verdict == "RUNTIME_ERROR":
+        strengths = ["The submission was accepted by the judge as valid Python input."]
+        issue = context.error_message or "The submission raised an exception during evaluation."
+        next_step = "Trace the failing operation with the smallest input and add a guard for that case."
+    elif context.verdict == "TIME_LIMIT_EXCEEDED":
+        strengths = ["The submission was accepted by the judge and began execution."]
+        issue = "The submission did not finish within the judge time limit."
+        next_step = "Identify the innermost repeated work and look for a way to avoid recomputing it."
+    else:
+        strengths = ["The submission was accepted by the judge and produced an evaluable result."]
+        issue = "The implementation does not yet produce the expected result for every judge case."
+        next_step = "Compare the first failing case with the problem contract and trace the state change that leads to the wrong result."
+    return StructuredFeedback(
+        strengths=strengths,
+        likely_issue=issue,
+        hint=(next_step if stage == "HINT" else None),
+        complexity=Complexity(time="Not available", space="Not available"),
+        next_step=next_step,
+    )
+
+
 def validate_feedback(stage, payload):
     return OUTPUT_MODELS[stage].model_validate_json(payload)
 

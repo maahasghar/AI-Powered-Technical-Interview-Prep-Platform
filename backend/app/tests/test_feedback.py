@@ -11,7 +11,12 @@ from app.feedback.policy import (
     judge_ready,
     validate_feedback,
 )
-from app.feedback.provider import OpenAIFeedbackProvider
+from app.feedback.evaluation import EVALUATION_CASES, evaluate_output
+from app.feedback.provider import (
+    DisabledFeedbackProvider,
+    OpenAIFeedbackProvider,
+    build_feedback_provider,
+)
 from pydantic import SecretStr
 
 
@@ -99,6 +104,28 @@ def test_structured_feedback_rejects_extra_fields_and_unbounded_lists():
         validate_feedback("HINT", structured_payload(unexpected="secret"))
     with pytest.raises(ValueError):
         validate_feedback("HINT", structured_payload(strengths=["x"] * 6))
+
+
+def test_evaluation_fixture_rejects_stage_policy_regressions():
+    diagnosis = next(case for case in EVALUATION_CASES if case.stage == "DIAGNOSIS")
+    hint = next(case for case in EVALUATION_CASES if case.stage == "HINT")
+    solution = next(case for case in EVALUATION_CASES if case.stage == "SOLUTION")
+    assert evaluate_output(diagnosis, structured_payload(hint="leak"))
+    assert evaluate_output(hint, structured_payload(next_step="```python\npass\n```"))
+    assert evaluate_output(solution, structured_payload(next_step="No code here."))
+
+
+def test_ai_provider_requires_evaluation_approval(monkeypatch):
+    monkeypatch.setattr(settings, "FEEDBACK_PROVIDER", "ollama")
+    monkeypatch.setattr(settings, "FEEDBACK_AI_ENABLED", False)
+    monkeypatch.setattr(settings, "FEEDBACK_EVALUATION_PASSED", False)
+    assert isinstance(build_feedback_provider(), DisabledFeedbackProvider)
+
+    monkeypatch.setattr(settings, "FEEDBACK_AI_ENABLED", True)
+    assert isinstance(build_feedback_provider(), DisabledFeedbackProvider)
+
+    monkeypatch.setattr(settings, "FEEDBACK_EVALUATION_PASSED", True)
+    assert not isinstance(build_feedback_provider(), DisabledFeedbackProvider)
 
 
 def test_provider_protocol_and_stage_boundary(monkeypatch):

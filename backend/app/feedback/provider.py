@@ -1,4 +1,5 @@
 import json
+import time
 
 import httpx
 from app.core.config import settings
@@ -43,8 +44,10 @@ class OpenAIFeedbackProvider:
             "temperature": 0.2,
             "response_format": {"type": "json_object"},
         }
+        started = time.monotonic()
         with httpx.Client(  # noqa: SIM117 - keep streamed response lifetime explicit
-            timeout=httpx.Timeout(45, connect=5), follow_redirects=False
+            timeout=httpx.Timeout(settings.FEEDBACK_TIMEOUT_SECONDS, connect=5),
+            follow_redirects=False,
         ) as client:
             response = client.post(
                 "https://api.openai.com/v1/chat/completions",
@@ -64,6 +67,17 @@ class OpenAIFeedbackProvider:
         if not isinstance(content, str):
             raise ValueError("Feedback provider refused")
         candidate = model.model_validate_json(content)
+        usage = data.get("usage") or {}
+        self.last_metadata = {
+            "provider": "openai",
+            "model": settings.FEEDBACK_MODEL,
+            "input_tokens": usage.get("prompt_tokens"),
+            "output_tokens": usage.get("completion_tokens"),
+            "generation_ms": round((time.monotonic() - started) * 1000),
+            "estimated_cost_usd": _estimated_cost(
+                usage.get("prompt_tokens"), usage.get("completion_tokens")
+            ),
+        }
         return candidate.model_dump_json()
 
 
@@ -84,8 +98,10 @@ class OllamaFeedbackProvider:
             "stream": False,
             "options": {"temperature": 0.2},
         }
+        started = time.monotonic()
         with httpx.Client(
-            timeout=httpx.Timeout(120, connect=5), follow_redirects=False
+            timeout=httpx.Timeout(settings.FEEDBACK_TIMEOUT_SECONDS, connect=5),
+            follow_redirects=False,
         ) as client:
             response = client.post(
                 f"{settings.OLLAMA_BASE_URL}/api/chat",
@@ -100,10 +116,39 @@ class OllamaFeedbackProvider:
         if not isinstance(content, str):
             raise ValueError("Feedback provider refused")
         candidate = model.model_validate_json(content)
+        self.last_metadata = {
+            "provider": "ollama",
+            "model": settings.FEEDBACK_MODEL,
+            "input_tokens": data.get("prompt_eval_count"),
+            "output_tokens": data.get("eval_count"),
+            "generation_ms": round((time.monotonic() - started) * 1000),
+            "estimated_cost_usd": "0",
+        }
         return candidate.model_dump_json()
 
 
+def _estimated_cost(input_tokens, output_tokens):
+    if input_tokens is None or output_tokens is None:
+        return None
+    return str(
+        round(
+            input_tokens * settings.FEEDBACK_OPENAI_INPUT_COST_PER_MILLION / 1_000_000
+            + output_tokens
+            * settings.FEEDBACK_OPENAI_OUTPUT_COST_PER_MILLION
+            / 1_000_000,
+            8,
+        )
+    )
+
+
 def build_feedback_provider():
+    if not settings.FEEDBACK_AI_ENABLED or not settings.FEEDBACK_EVALUATION_PASSED:
+        return DisabledFeedbackProvider()
     if settings.FEEDBACK_PROVIDER == "ollama":
         return OllamaFeedbackProvider()
     return OpenAIFeedbackProvider()
+
+
+class DisabledFeedbackProvider:
+    def generate(self, stage, context: FeedbackContext):
+        raise RuntimeError("AI feedback is disabled pending evaluation")
