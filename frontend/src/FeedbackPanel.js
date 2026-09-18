@@ -7,6 +7,16 @@ const stages = [
   ["SOLUTION", "show_solution", "Show solution"],
 ];
 
+// Splits text on fenced ```code``` blocks so code renders with a monospace background.
+function renderWithCodeBlocks(text) {
+  const parts = text.split(/```(?:[a-zA-Z0-9]*\n)?([\s\S]*?)```/g);
+  return parts.map((part, index) =>
+    index % 2 === 1
+      ? <pre className="code-block" key={index}><code>{part.trim()}</code></pre>
+      : part.trim() && <p key={index}>{part.trim()}</p>
+  );
+}
+
 export default function FeedbackPanel({ submissionId }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
@@ -63,8 +73,16 @@ export default function FeedbackPanel({ submissionId }) {
         </ul>
         {item.feedback.likely_issue && <p><strong>Likely issue:</strong> {item.feedback.likely_issue}</p>}
         {item.feedback.hint && <p><strong>Hint:</strong> {item.feedback.hint}</p>}
-        <p><strong>Complexity:</strong> {item.feedback.complexity.time} time, {item.feedback.complexity.space} space</p>
-        <p><strong>Next step:</strong> {item.feedback.next_step}</p>
+        {stage === "SOLUTION"
+          ? <>
+              {renderWithCodeBlocks(item.feedback.next_step)}
+              <p><strong>Complexity:</strong> {item.feedback.complexity.time} time, {item.feedback.complexity.space} space</p>
+            </>
+          : <>
+              {stage !== "HINT" && <p><strong>Complexity:</strong> {item.feedback.complexity.time} time, {item.feedback.complexity.space} space</p>}
+              <strong>Next step:</strong>
+              {renderWithCodeBlocks(item.feedback.next_step)}
+            </>}
       </div>;
       if (item && ["QUEUED", "RUNNING"].includes(item.status)) return <p key={stage}>{label}: preparing…</p>;
       return <div key={stage}>

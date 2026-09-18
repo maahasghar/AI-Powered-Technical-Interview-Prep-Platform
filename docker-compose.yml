@@ -40,11 +40,20 @@ services:
     environment:
       DATABASE_URL: postgresql://app:app@postgres:5432/app
       REDIS_URL: redis://redis:6379/0
+      OLLAMA_BASE_URL: http://ollama:11434
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
     restart: unless-stopped
 
   judge-image:
@@ -92,3 +101,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  ollama-data:

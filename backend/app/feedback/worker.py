@@ -5,12 +5,13 @@ import time
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
+import httpx
 from app.domain.auth.models import User  # noqa: F401
 from app.domain.problems.models import Problem
 from app.domain.submissions.models import Submission
 from app.feedback.models import Feedback
 from app.feedback.policy import build_feedback_context, judge_ready, validate_feedback
-from app.feedback.provider import OpenAIFeedbackProvider
+from app.feedback.provider import build_feedback_provider
 from app.feedback.service import FEEDBACK_QUEUE, initial_feedback
 from app.infrastructure.db import SessionLocal
 from app.infrastructure.redis import RedisClient
@@ -18,6 +19,19 @@ from app.infrastructure.submission_queue import SubmissionQueue
 from sqlalchemy import exists, update
 
 logger = logging.getLogger(__name__)
+
+
+def _retry_delay(exc: Exception, attempt: int) -> float:
+    """Backoff before retrying a failed provider call, honoring Retry-After on 429s."""
+    if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 429:
+        retry_after = exc.response.headers.get("retry-after")
+        if retry_after is not None:
+            try:
+                return max(float(retry_after), 1.0)
+            except ValueError:
+                pass
+        return 5.0
+    return 1.0 * (attempt + 1)
 
 
 def reconcile_feedback(queue, session_factory=SessionLocal):
@@ -107,8 +121,9 @@ def process_feedback(feedback_id, provider, session_factory=SessionLocal):
             )
         return
     status, payload = "FAILED", None
+    attempts = 2
     if context is not None:
-        for attempt in range(2):
+        for attempt in range(attempts):
             try:
                 candidate = provider.generate(stage, context)
                 payload = validate_feedback(stage, candidate).model_dump_json()
@@ -122,6 +137,8 @@ def process_feedback(feedback_id, provider, session_factory=SessionLocal):
                     attempt + 1,
                     type(exc).__name__,
                 )
+                if attempt + 1 < attempts:
+                    time.sleep(_retry_delay(exc, attempt))
     with session_factory.begin() as session:
         session.execute(
             update(Feedback)
@@ -142,7 +159,7 @@ def main():
     logging.basicConfig(level=logging.INFO)
     redis = RedisClient()
     queue = SubmissionQueue(redis.client, FEEDBACK_QUEUE)
-    provider = OpenAIFeedbackProvider()
+    provider = build_feedback_provider()
     last_scan = 0
     try:
         while True:

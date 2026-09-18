@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     ENV: str = "dev"
     OPENAI_API_KEY: SecretStr = SecretStr("")
     FEEDBACK_MODEL: str = ""
+    FEEDBACK_PROVIDER: str = "openai"
+    OLLAMA_BASE_URL: str = "http://ollama:11434"
     SENTRY_DSN: str = ""
     CORS_ORIGINS: str = "http://localhost:3000"
     FRONTEND_URL: str = "http://localhost:3000"
