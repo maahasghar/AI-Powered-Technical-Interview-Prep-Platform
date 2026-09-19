@@ -106,11 +106,6 @@ class OpenAIFeedbackProvider:
             if len(body) > 256_000:
                 raise ValueError("Feedback response is too large")
         data = json.loads(body)
-        if data.get("status") != "completed":
-            message = _response_error_message(data)
-            if message is not None:
-                raise ValueError(f"Feedback response did not complete: {message}")
-            raise ValueError("Feedback response did not complete")
         content = None
         for output in data.get("output") or []:
             if output.get("type") != "message":
@@ -124,11 +119,16 @@ class OpenAIFeedbackProvider:
             if content is not None:
                 break
         if content is None:
+            status = data.get("status")
             message = _response_error_message(data)
             if message is not None:
-                raise ValueError(
-                    f"Feedback response completed without content: {message}"
-                )
+                if status == "completed":
+                    raise ValueError(
+                        f"Feedback response completed without content: {message}"
+                    )
+                raise ValueError(f"Feedback response did not complete: {message}")
+            if status not in (None, "completed"):
+                raise ValueError("Feedback response did not complete")
             raise ValueError("Feedback provider refused")
         if not isinstance(content, str):
             raise TypeError("Feedback provider refused")
