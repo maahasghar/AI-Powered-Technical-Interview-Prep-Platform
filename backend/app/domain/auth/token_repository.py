@@ -42,3 +42,10 @@ class AccountTokenRepository:
     def mark_used(self, token):
         token.used_at = datetime.now(timezone.utc)
         self.db.commit()
+
+    def delete_expired(self):
+        now = datetime.now(timezone.utc)
+        self.db.query(AccountToken).filter(AccountToken.expires_at < now).delete(
+            synchronize_session=False
+        )
+        self.db.commit()

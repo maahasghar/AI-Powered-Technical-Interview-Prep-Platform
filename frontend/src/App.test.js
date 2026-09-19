@@ -120,7 +120,7 @@ test("history links to result and displays backend status", async () => {
     "href",
     "/submissions/8",
   );
-  expect(screen.getByText("passed")).toBeInTheDocument();
+  expect(screen.getByText("Passed")).toBeInTheDocument();
 });
 test("failed requests show retry and recover", async () => {
   global.fetch

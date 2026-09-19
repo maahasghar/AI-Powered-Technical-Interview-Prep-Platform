@@ -17,6 +17,7 @@ from app.domain.problems import models as problem_models  # noqa: F401
 from app.domain.submissions import models as submission_models  # noqa: F401
 from app.domain.user import models as user_models  # noqa: F401
 from app.feedback import models as feedback_models  # noqa: F401
+from app import audit as audit_models  # noqa: F401
 from app.infrastructure.db import Base
 
 # -------------------

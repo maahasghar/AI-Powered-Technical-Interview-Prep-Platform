@@ -202,6 +202,69 @@ button.primary:hover:not(:disabled) {
   font-size: 13px;
   line-height: 1.6;
 }
+.progress-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 30px;
+}
+.progress-stat,
+.progress-section {
+  background: white;
+  border: 1px solid #dfe7df;
+  border-radius: 10px;
+  padding: 22px;
+}
+.progress-stat strong {
+  display: block;
+  color: #285c46;
+  font-size: 30px;
+}
+.progress-stat span,
+.progress-row span,
+.activity-list time {
+  color: #64766c;
+  font-size: 13px;
+}
+.progress-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 24px;
+}
+.progress-section h2 { margin-top: 0; }
+.progress-row,
+.activity-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #e9eee9;
+}
+.activity-list { list-style: none; padding: 0; }
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid #d18b28;
+  outline-offset: 3px;
+}
+@media (max-width: 760px) {
+  .site-header { align-items: flex-start; flex-direction: column; }
+  nav { flex-wrap: wrap; gap: 14px; }
+  main { padding: 32px 18px; }
+  .workspace,
+  .auth-layout,
+  .progress-grid { grid-template-columns: 1fr; gap: 18px; }
+  .progress-summary { grid-template-columns: 1fr; }
+  .panel { padding: 20px; }
+  .filters { flex-direction: column; }
+  .filters label { width: auto; }
+  .progress-row { align-items: flex-start; flex-wrap: wrap; }
+  .progress-row span:last-child { margin-left: auto; }
+  .table-scroll { max-width: 100%; overflow-x: auto; }
+}
 .tags {
   display: flex;
   gap: 8px;

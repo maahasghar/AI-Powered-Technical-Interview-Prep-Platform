@@ -1,3 +1,6 @@
+from app.audit import record_audit
+
+
 class SubmissionsService:
     def __init__(self, submissions_repo, queue):
         self.submissions_repo = submissions_repo
@@ -26,6 +29,13 @@ class SubmissionsService:
         submission = self.submissions_repo.create(
             user_id, problem_id, code, language, status
         )
+        record_audit(
+            self.submissions_repo.db.session,
+            "SUBMISSION_CREATED",
+            actor_user_id=user_id,
+            target_id=submission.id,
+        )
+        self.submissions_repo.db.commit()
         # The committed QUEUED row is also the durable dispatch record. The worker
         # reconciles it if Redis is unavailable or the API dies before enqueue.
         self.queue.enqueue(submission.id)

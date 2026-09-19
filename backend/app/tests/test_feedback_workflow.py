@@ -53,7 +53,9 @@ def test_judge_commit_precedes_feedback_and_failure_cannot_change_verdict(
     process_feedback(row.id, provider, sessionmaker(bind=db_session.get_bind()))
     db_session.refresh(row)
     db_session.refresh(submission)
-    assert row.status == "FAILED"
+    assert row.status == "READY"
+    assert row.source == "fallback"
+    assert row.payload is not None
     assert submission.status == "FAILED" and submission.result == verdict
 
 

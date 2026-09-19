@@ -37,8 +37,12 @@ export default function FeedbackPanel({ submissionId }) {
         if (result.eligible && (!result.items.length || result.items.some(item => ["QUEUED", "RUNNING"].includes(item.status)))) {
           timer = setTimeout(load, 2000);
         }
-      } catch {
-        if (active) setError("Coaching is unavailable. Your judge result is unchanged.");
+        } catch (caught) {
+          if (!active || caught?.name === "AbortError") return;
+          const detail = caught instanceof Error && caught.message
+            ? ` ${caught.message}`
+            : " Please check the API connection and try again.";
+          setError(`Coaching is unavailable. Your judge result is unchanged.${detail}`);
       }
     }
     load();

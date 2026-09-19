@@ -13,6 +13,7 @@ import AuthPage from "./pages/AuthPage";
 import Problems from "./pages/Problems";
 import ProblemDetail from "./pages/ProblemDetail";
 import { History, SubmissionResult } from "./pages/Submissions";
+import Progress from "./pages/Progress";
 import { ErrorMessage } from "./ui";
 import "./App.css";
 function Layout() {
@@ -41,6 +42,7 @@ function Layout() {
             <>
               <NavLink to="/problems">Problems</NavLink>
               <NavLink to="/history">History</NavLink>
+              <NavLink to="/progress">Progress</NavLink>
               <button disabled={busy} onClick={signOut}>
                 {busy ? "Signing out…" : "Sign out"}
               </button>
@@ -94,6 +96,7 @@ export function AppRoutes() {
             element={<SubmissionResult />}
           />
           <Route path="history" element={<History />} />
+          <Route path="progress" element={<Progress />} />
         </Route>
         <Route
           path="*"

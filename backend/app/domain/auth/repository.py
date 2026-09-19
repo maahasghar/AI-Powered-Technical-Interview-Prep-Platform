@@ -49,3 +49,10 @@ class AuthRepository:
             {"revoked": True}
         )
         self.db.commit()
+
+    def delete_expired_or_revoked(self):
+        now = datetime.now(timezone.utc)
+        self.db.query(AuthToken).filter(
+            (AuthToken.expires_at < now) | (AuthToken.revoked.is_(True))
+        ).delete(synchronize_session=False)
+        self.db.commit()

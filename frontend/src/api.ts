@@ -39,12 +39,22 @@ export interface Submission extends SubmissionInput {
   id: number; user_id: number; language: "python"; status: SubmissionStatus;
   result: SubmissionResult | null; created_at: string | null; updated_at: string | null;
 }
+export interface ProgressBucket { attempted: number; solved: number; solve_rate: number }
+export interface ProgressActivity { status: SubmissionStatus; created_at: string | null }
+export interface ProgressResponse {
+  total_attempted: number;
+  total_solved: number;
+  solve_rate: number;
+  by_difficulty: Record<string, ProgressBucket>;
+  by_category: Record<string, ProgressBucket>;
+  recent_activity: ProgressActivity[];
+}
 interface Message { message: string }
 interface Registration { email: string; password: string; full_name?: string | null; bio?: string | null; avatar_url?: string | null }
 type WithQuery<P extends string> = P | `${P}?${string}`;
-type GetPath = `/submissions/${number}/feedback` | "/users/me" | WithQuery<"/problems"> | `/problems/${number}` |
+type GetPath = `/submissions/${number}/feedback` | "/users/me" | "/users/me/progress" | WithQuery<"/problems"> | `/problems/${number}` |
   WithQuery<"/submissions/me"> | `/submissions/${number}` | `/auth/verify-email?token=${string}`;
-type GetResponse<P extends GetPath> = P extends `/submissions/${number}/feedback` ? FeedbackList : P extends "/users/me" ? User :
+type GetResponse<P extends GetPath> = P extends `/submissions/${number}/feedback` ? FeedbackList : P extends "/users/me/progress" ? ProgressResponse : P extends "/users/me" ? User :
   P extends WithQuery<"/problems"> ? Problem[] : P extends `/problems/${number}` ? Problem :
   P extends WithQuery<"/submissions/me"> ? Submission[] : P extends `/submissions/${number}` ? Submission : Message;
 interface PostBodies {

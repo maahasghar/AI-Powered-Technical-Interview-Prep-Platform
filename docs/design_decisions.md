@@ -56,3 +56,383 @@ Run it before rollout:
 	PYTHONPATH=backend python -m app.scripts.evaluate_feedback --report feedback-evaluation-report.json
 
 Review the report and enable AI only when every case passes by setting `FEEDBACK_AI_ENABLED=true` and `FEEDBACK_EVALUATION_PASSED=true`. Rerun the suite whenever the model, prompt version, parameters, or feedback pipeline changes; keep AI disabled when the suite fails so deterministic fallback guidance remains active.
+
+
+
+Implement the following production-readiness improvements for the AI Technical Interview Prep Platform.
+
+IMPORTANT:
+Before changing any code:
+1. Inspect the existing repository structure, backend architecture, frontend architecture, database models, authentication/session implementation, submission lifecycle, Docker configuration, and existing tests.
+2. Reuse existing abstractions and conventions wherever possible.
+3. Do not rewrite working architecture simply to fit these requirements.
+4. Do not introduce infrastructure unless it solves an actual requirement.
+5. If an implementation choice conflicts with the existing architecture, explain the conflict and choose the least disruptive solution.
+6. Keep changes modular and production-oriented.
+7. Add/update tests for important behavior.
+8. Update documentation for new configuration/environment variables.
+9. Do not put secrets, passwords, JWTs, refresh tokens, API keys, or other sensitive values into logs/audit records.
+
+Implement the following.
+
+==================================================
+1. USER PROGRESS SUMMARIES
+==================================================
+
+Add a progress-summary capability based on persisted submission data.
+
+Expose an authenticated endpoint similar to:
+
+GET /api/v1/users/me/progress
+
+Return useful metrics where supported by the current schema, including:
+- total problems attempted
+- total problems solved
+- overall success/solve rate
+- breakdown by difficulty
+- breakdown by problem category/pattern if categories exist
+- recent activity/progress if timestamps support it
+
+Design requirements:
+- Calculate statistics from PostgreSQL on demand for the MVP.
+- Do NOT introduce materialized views, background aggregation jobs, or Redis caching unless the existing architecture clearly requires them.
+- Avoid N+1 queries.
+- Keep aggregation/query logic out of the API router and in the appropriate service/repository layer.
+- Ensure users can access only their own statistics.
+- Handle users with no submissions cleanly.
+- Add tests for aggregation logic and authorization.
+
+Add a simple frontend progress/dashboard view if an appropriate dashboard/profile surface already exists.
+
+==================================================
+2. ACCESSIBILITY + RESPONSIVE UI
+==================================================
+
+Review the React frontend and improve accessibility and responsive behavior.
+
+Requirements:
+- Use semantic HTML wherever practical.
+- All form controls must have accessible labels.
+- Interactive elements must be keyboard accessible.
+- Provide visible focus states.
+- Do not communicate submission success/failure solely through color.
+- Provide text such as "Passed" and "Failed".
+- Add appropriate ARIA attributes only where semantic HTML is insufficient.
+- Loading/error/status changes should be understandable to assistive technology.
+- Images/icons that convey information need accessible text.
+- Decorative images/icons should not create unnecessary screen-reader noise.
+
+Responsive behavior:
+- Desktop layouts may use multi-column layouts.
+- On smaller screens, problem description, editor, results, and feedback should stack/reflow appropriately.
+- Avoid horizontal page overflow.
+- Ensure navigation, authentication forms, problem lists, editor controls, and result displays remain usable on smaller screens.
+
+Do not claim formal WCAG compliance. Implement strong accessibility fundamentals.
+
+==================================================
+3. EXPLICIT LOADING + ERROR STATES
+==================================================
+
+Review asynchronous frontend/backend workflows, especially submissions.
+
+Model submission lifecycle explicitly using the existing architecture. Use states equivalent to:
+
+QUEUED
+RUNNING
+JUDGING
+GENERATING_FEEDBACK
+COMPLETED
+FAILED
+
+Only add states that actually correspond to the current workflow.
+
+Frontend requirements:
+- Show meaningful loading/progress states.
+- Prevent accidental duplicate submission while an identical submission request is already being initiated where appropriate.
+- Handle network errors.
+- Handle authentication expiration.
+- Handle 429 responses.
+- Handle judge failures.
+- Handle AI-feedback failures separately from deterministic judge failures.
+- Handle generic server failures.
+
+IMPORTANT:
+AI feedback must not be required for deterministic judge results.
+
+If judging succeeds but AI feedback fails, still return/display the deterministic result and show a message such as:
+
+"AI feedback is temporarily unavailable."
+
+Do not expose stack traces, internal exception details, secrets, hidden test cases, or judge internals to the frontend.
+
+Use existing global error-handling/API-client mechanisms rather than duplicating error handling throughout components.
+
+==================================================
+4. RATE LIMITING
+==================================================
+
+Add rate limiting to abuse-sensitive and/or expensive endpoints.
+
+At minimum evaluate:
+- login
+- registration if appropriate
+- email verification resend
+- submission creation
+- AI feedback generation
+
+Do NOT necessarily apply the same limit to every endpoint.
+
+Choose reasonable development/MVP defaults and make important limits configurable through environment/config settings.
+
+Identity strategy:
+- authenticated expensive operations: primarily user ID
+- unauthenticated auth endpoints: IP-based or an appropriate combination
+- avoid trusting arbitrary client-supplied identity headers
+
+Use Redis-backed rate limiting if Redis is already part of or being integrated into the architecture. If Redis is unavailable in the current implementation and adding it would significantly expand scope, implement the cleanest abstraction that allows Redis-backed limiting later and document the tradeoff.
+
+Return:
+
+HTTP 429 Too Many Requests
+
+Provide a safe client-facing error response.
+
+If practical, include appropriate retry information.
+
+Add tests proving:
+- requests under the limit succeed
+- requests exceeding the limit return 429
+- one user's limit does not incorrectly affect another authenticated user
+
+==================================================
+5. AUDIT EVENTS
+==================================================
+
+Introduce structured audit events for security-sensitive and privileged actions.
+
+Audit events should be distinct from ordinary application/debug logs.
+
+Support events where applicable such as:
+
+USER_REGISTERED
+LOGIN_SUCCESS
+LOGIN_FAILED
+EMAIL_VERIFIED
+PASSWORD_CHANGED
+REFRESH_TOKEN_ROTATED
+SESSION_REVOKED
+SUBMISSION_CREATED
+PROBLEM_CREATED
+PROBLEM_UPDATED
+PROBLEM_DELETED
+ADMIN_ROLE_GRANTED
+
+Do not invent workflows that don't exist yet.
+
+Audit record fields should include only useful metadata, for example:
+- event type
+- timestamp
+- actor/user ID when available
+- target resource ID when relevant
+- request/correlation ID if the application already supports one
+- limited request metadata such as IP only if justified
+
+NEVER record:
+- plaintext passwords
+- password hashes
+- JWTs
+- refresh tokens
+- verification tokens
+- API keys
+- authorization headers
+- secrets
+- hidden test contents
+- unnecessary user code
+
+Design audit events so they can later be queried/investigated.
+
+Prefer an append-oriented audit model.
+
+Add tests confirming important events are created and sensitive values are not stored.
+
+==================================================
+6. DATABASE BACKUP + RECOVERY DOCUMENTATION
+==================================================
+
+Do NOT build a custom backup service unless absolutely necessary.
+
+The production PostgreSQL deployment should rely on managed-provider backup functionality where available.
+
+Add operational documentation covering:
+- what data must be backed up
+- expected backup frequency
+- retention period
+- restore procedure
+- how restore verification should be performed
+- RPO
+- RTO
+
+For the MVP, recommend/document sensible targets rather than pretending stronger guarantees exist.
+
+Redis should NOT require backup if it contains only disposable cache/rate-limit state. If Redis currently stores durable business-critical state, identify that architectural problem.
+
+Create documentation such as:
+
+docs/backup-and-recovery.md
+
+Do not include production credentials or secrets.
+
+==================================================
+7. DATA RETENTION + ACCOUNT DELETION
+==================================================
+
+Review all persisted user-related data.
+
+Document and implement a basic retention strategy for:
+- user accounts
+- submissions
+- AI feedback
+- refresh/session tokens
+- verification/reset tokens if present
+- audit events
+
+Implement or improve account deletion if appropriate.
+
+Account deletion must:
+- require authentication
+- revoke active sessions/tokens
+- handle dependent database records intentionally
+- delete or anonymize personal data according to clearly documented rules
+- avoid leaving broken foreign-key references
+- not accidentally delete shared/global problem data
+
+Decide explicitly whether submission history is deleted or anonymized.
+
+Expired/revoked temporary authentication records should not be retained forever. Implement a cleanup strategy appropriate to the existing architecture.
+
+Document that deleted information may remain temporarily in backup snapshots until those backups expire according to the backup-retention policy.
+
+Do not implement arbitrary retention periods without documenting them centrally/configurably where appropriate.
+
+==================================================
+8. TESTING
+==================================================
+
+Add tests for the important behavior introduced above.
+
+Prioritize:
+- progress aggregation
+- authorization
+- rate limiting
+- audit event creation
+- account deletion/data handling
+- submission state transitions
+- graceful handling of AI failure
+- sensitive-data exclusion
+
+Use the project's existing testing conventions.
+
+Do not write meaningless tests purely to increase coverage.
+
+==================================================
+9. OBSERVABILITY / ERROR HANDLING
+==================================================
+
+Where these changes introduce new failure modes:
+
+- use structured logging consistent with the existing project
+- avoid logging secrets
+- distinguish expected operational failures from unexpected exceptions
+- preserve useful server-side diagnostic context
+- expose only sanitized errors to clients
+
+If correlation/request IDs already exist, propagate them.
+If they do not exist, do not introduce a large observability subsystem solely for this task.
+
+==================================================
+10. DOCUMENTATION
+==================================================
+
+Update the README and/or docs to accurately describe what is ACTUALLY implemented.
+
+Do not describe planned features as completed.
+
+Document:
+- progress-summary endpoint
+- submission states
+- rate-limiting behavior
+- audit-event strategy
+- backup/recovery strategy
+- data-retention/account-deletion behavior
+- new environment variables
+- relevant architectural decisions
+
+==================================================
+IMPLEMENTATION PROCESS
+==================================================
+
+Work incrementally.
+
+First:
+1. Inspect the repository.
+2. Give me a concise implementation plan showing:
+   - existing components you found
+   - files/modules likely to change
+   - database migrations required
+   - new dependencies, if any
+   - important architectural decisions
+   - anything already implemented that should be reused
+   - anything from these requirements that does NOT make sense for the current application
+
+Then implement the work in logical phases.
+
+Suggested phases:
+
+Phase 1:
+Progress summaries + submission/loading/error states
+
+Phase 2:
+Rate limiting
+
+Phase 3:
+Audit events
+
+Phase 4:
+Account deletion + retention controls
+
+Phase 5:
+Accessibility/responsive improvements
+
+Phase 6:
+Backup/recovery documentation + final docs
+
+After each phase:
+- run relevant tests
+- fix failures caused by the changes
+- summarize what changed
+
+Do not silently change unrelated application behavior.
+
+==================================================
+FINAL ACCEPTANCE CRITERIA
+==================================================
+
+The work is complete when:
+
+1. Authenticated users can retrieve meaningful progress statistics.
+2. The frontend handles loading, success, partial failure, and error states clearly.
+3. AI-feedback failure does not destroy a successful deterministic judge result.
+4. Abuse-sensitive endpoints are rate limited.
+5. Security-sensitive/privileged actions generate safe audit events.
+6. No secrets/tokens/passwords are stored in audit events or exposed to clients.
+7. Core UI works reasonably across desktop and smaller screens.
+8. Basic keyboard/accessibility behavior is supported.
+9. Account deletion and data-retention behavior are explicitly defined and implemented.
+10. PostgreSQL backup/recovery procedures are documented.
+11. Important new behavior has meaningful tests.
+12. Existing tests still pass.
+13. Documentation reflects the actual implementation.
+14. The application remains runnable through the project's existing local/Docker workflow.
+
+Most importantly: favor simple, defensible MVP implementations over unnecessary enterprise complexity. If a requirement would substantially overengineer the current application, explain why and implement the smallest architecture that leaves a clean upgrade path.

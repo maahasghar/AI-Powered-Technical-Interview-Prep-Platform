@@ -31,7 +31,7 @@ export function useResource(path, pollSubmission = false) {
 }
 export function ErrorMessage({ children }) {
   return children ? (
-    <p role="alert" className="error">
+    <p role="alert" aria-live="assertive" className="error">
       {children}
     </p>
   ) : null;
@@ -61,9 +61,17 @@ export function Difficulty({ value }) {
   );
 }
 export function Status({ value }) {
+  const label = {
+    PASSED: "Passed",
+    FAILED: "Failed",
+    RUNTIME_ERROR: "Runtime error",
+    TIME_LIMIT_EXCEEDED: "Time limit exceeded",
+    QUEUED: "Queued",
+    RUNNING: "Running",
+  }[value] || "Unknown";
   return (
     <span className={`badge ${value === "PASSED" ? "difficulty-1" : ""}`}>
-      {(value || "QUEUED").toLowerCase().replaceAll("_", " ")}
+      {label}
     </span>
   );
 }

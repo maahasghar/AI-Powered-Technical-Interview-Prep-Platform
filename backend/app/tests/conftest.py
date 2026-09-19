@@ -45,6 +45,8 @@ def client(db_session, monkeypatch):
     from app.core.container import container
 
     monkeypatch.setattr(container.redis.client, "zadd", Mock(return_value=1))
+    monkeypatch.setattr(container.redis.client, "incr", Mock(return_value=1))
+    monkeypatch.setattr(container.redis.client, "expire", Mock(return_value=True))
 
     def override_get_db_session():
         yield db_session

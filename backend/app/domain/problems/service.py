@@ -1,3 +1,6 @@
+from app.audit import record_audit
+
+
 class ProblemsService:
     def __init__(self, problems_repo):
         self.problems_repo = problems_repo
@@ -23,12 +26,23 @@ class ProblemsService:
         test_cases: str,
         hidden_test_cases: str = "[]",
     ):
-        return self.problems_repo.create(
+        problem = self.problems_repo.create(
             title, difficulty, categories, description, test_cases, hidden_test_cases
         )
+        record_audit(self.problems_repo.db.session, "PROBLEM_CREATED", target_id=problem.id)
+        self.problems_repo.db.commit()
+        return problem
 
     def update_problem(self, problem_id: int, **kwargs):
-        return self.problems_repo.update(problem_id, **kwargs)
+        problem = self.problems_repo.update(problem_id, **kwargs)
+        if problem:
+            record_audit(self.problems_repo.db.session, "PROBLEM_UPDATED", target_id=problem_id)
+            self.problems_repo.db.commit()
+        return problem
 
     def archive_problem(self, problem_id: int):
-        return self.problems_repo.archive(problem_id)
+        problem = self.problems_repo.archive(problem_id)
+        if problem:
+            record_audit(self.problems_repo.db.session, "PROBLEM_DELETED", target_id=problem_id)
+            self.problems_repo.db.commit()
+        return problem

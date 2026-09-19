@@ -1,5 +1,6 @@
 from app.core.config import settings
 from app.core.container import container
+from app.core.rate_limit import RedisRateLimiter, client_identity
 from app.domain.auth.exceptions import Unauthorized
 from app.domain.auth.schemas import (
     ForgotPasswordRequest,
@@ -28,6 +29,12 @@ def get_auth_service(
     return container.get_auth_service(session)
 
 
+def _limit(request, name, limit, window):
+    RedisRateLimiter(container.redis.client).check(
+        f"{name}:{client_identity(request)}", limit, window
+    )
+
+
 # using the dependency injection to get the AuthService instance to handle the authentication-related endpoints.
 # Each endpoint uses the appropriate request and response schemas defined in the auth/schemas.py file.
 # Each istance of dependency injection return the service instance, where the payload is passed to the service methods to handle the business logic of authentication, such as login, logout, registration, token refresh, and email verification.
@@ -37,9 +44,11 @@ def get_auth_service(
     "/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED
 )
 def register(
+    request: Request,
     payload: RegisterRequest,
     auth_service: AuthService = Depends(get_auth_service),
 ):
+    _limit(request, "register", settings.REGISTER_RATE_LIMIT, settings.REGISTER_RATE_WINDOW_SECONDS)
     return auth_service.register(payload)
 
 
@@ -90,10 +99,12 @@ def token_response(tokens, response: Response):
     dependencies=[Depends(require_session_request)],
 )
 def login(
+    request: Request,
     payload: LoginRequest,
     response: Response,
     auth_service: AuthService = Depends(get_auth_service),
 ):
+    _limit(request, "login", settings.LOGIN_RATE_LIMIT, settings.LOGIN_RATE_WINDOW_SECONDS)
     return token_response(auth_service.login(payload), response)
 
 
@@ -154,9 +165,11 @@ def verify_email(
 
 @router.post("/resend-verification", response_model=MessageResponse)
 def resend_verification(
+    request: Request,
     payload: ForgotPasswordRequest,
     auth_service: AuthService = Depends(get_auth_service),
 ):
+    _limit(request, "resend-verification", settings.RESEND_VERIFICATION_RATE_LIMIT, settings.RESEND_VERIFICATION_RATE_WINDOW_SECONDS)
     auth_service.resend_verification(payload.email)
     return MessageResponse(
         message="If the account exists, a verification email was sent."

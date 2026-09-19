@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from app.api.v1.routers.problems_router import get_problems_service
 from app.core.container import container
+from app.core.config import settings
+from app.core.rate_limit import RedisRateLimiter
 from app.domain.auth.service import AuthService
 from app.domain.problems.service import ProblemsService
 from app.domain.submissions.models import Submission
@@ -38,6 +40,11 @@ def create_submission(
     submissions_service: SubmissionsService = Depends(get_submissions_service),
     problems_service: ProblemsService = Depends(get_problems_service),
 ):
+    RedisRateLimiter(container.redis.client).check(
+        f"submission:user:{current_user.id}",
+        settings.SUBMISSION_RATE_LIMIT,
+        settings.SUBMISSION_RATE_WINDOW_SECONDS,
+    )
     problem = problems_service.get_problem(payload.problem_id)
     if problem is None or not problem.is_active:
         raise HTTPException(status_code=404, detail="Problem not found")
@@ -168,6 +175,11 @@ def create_feedback(
     current_user=Depends(AuthService.get_current_user),
     session: Session = Depends(get_db_session),
 ):
+    RedisRateLimiter(container.redis.client).check(
+        f"feedback:user:{current_user.id}",
+        settings.FEEDBACK_RATE_LIMIT,
+        settings.FEEDBACK_RATE_WINDOW_SECONDS,
+    )
     row, should_enqueue = request_feedback(
         session, submission_id, current_user.id, payload.action
     )

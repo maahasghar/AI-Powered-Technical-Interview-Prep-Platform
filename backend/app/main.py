@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.core.container import container
 from app.core.logging import RequestIDMiddleware, setup_logging
 from app.core.sentry import init_sentry
+from app import audit as audit_models  # noqa: F401
 from app.domain.auth.exceptions import (
     EmailNotVerifiedError,
     InvalidCredentials,

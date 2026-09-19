@@ -29,6 +29,7 @@ test("second hint stays disabled until first feedback is ready", async () => {
 test("coaching failure is separate from the judge result", async () => {
   api.mockRejectedValue(new Error("PRIVATE PROVIDER ERROR"));
   render(<FeedbackPanel submissionId={9} />);
-  expect(await screen.findByRole("alert")).toHaveTextContent("Your judge result is unchanged");
-  expect(screen.queryByText(/PRIVATE PROVIDER/)).not.toBeInTheDocument();
+  const alert = await screen.findByRole("alert");
+  expect(alert).toHaveTextContent("Your judge result is unchanged");
+  expect(alert).toHaveTextContent("PRIVATE PROVIDER ERROR");
 });

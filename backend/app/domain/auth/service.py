@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from app.core.config import settings
+from app.audit import record_audit
 from app.core.security import (  # generate_verification_token,
     create_access_token,
     create_refresh_token,
@@ -40,12 +41,17 @@ class AuthService:
         self.email_service = email_service
 
     def login(self, payload: LoginRequest):
+        self.token_repo.delete_expired_or_revoked()
         user = self.user_repo.get_by_email(payload.email)
 
         if not user:
+            record_audit(self.user_repo.db.session, "LOGIN_FAILED")
+            self.user_repo.db.commit()
             raise InvalidCredentials()
 
         if not verify_password(payload.password, user.password_hash):
+            record_audit(self.user_repo.db.session, "LOGIN_FAILED", target_id=user.id)
+            self.user_repo.db.commit()
             raise InvalidCredentials()
 
         # block user until email verified
@@ -54,6 +60,12 @@ class AuthService:
 
         access_token = create_access_token({"sub": user.id})
         refresh_token = self._issue_refresh_token(user.id)
+        record_audit(
+            self.user_repo.db.session,
+            "LOGIN_SUCCESS",
+            actor_user_id=user.id,
+        )
+        self.user_repo.db.commit()
 
         return {
             "access_token": access_token,
@@ -66,6 +78,12 @@ class AuthService:
         token = self.token_repo.get(self._hash_refresh_token(refresh_token))
         if token is not None and token.family_id == payload["family_id"]:
             self.token_repo.revoke_family(token.family_id)
+            record_audit(
+                self.user_repo.db.session,
+                "SESSION_REVOKED",
+                actor_user_id=token.user_id,
+            )
+            self.user_repo.db.commit()
 
     def refresh_access_token(self, refresh_token: str):
         payload = self._decode_refresh_token(refresh_token)
@@ -86,6 +104,12 @@ class AuthService:
             family_id=token.family_id,
             rotate_from=token,
         )
+        record_audit(
+            self.user_repo.db.session,
+            "REFRESH_TOKEN_ROTATED",
+            actor_user_id=token.user_id,
+        )
+        self.user_repo.db.commit()
 
         return {
             "access_token": create_access_token({"sub": token.user_id}),
@@ -146,6 +170,12 @@ class AuthService:
             )
 
         self._send_verification_token(user)
+        record_audit(
+            self.user_repo.db.session,
+            "USER_REGISTERED",
+            actor_user_id=user.id,
+        )
+        self.user_repo.db.commit()
         return user
 
     def verify_email(self, token: str):
@@ -159,6 +189,12 @@ class AuthService:
             verified_at=datetime.now(timezone.utc),
         )
         self.account_token_repo.mark_used(record)
+        record_audit(
+            self.user_repo.db.session,
+            "EMAIL_VERIFIED",
+            actor_user_id=user.id,
+        )
+        self.user_repo.db.commit()
 
     def resend_verification(self, email: str):
         user = self.user_repo.get_by_email(email.strip().lower())
@@ -194,6 +230,7 @@ class AuthService:
         self.email_service.send_verification_email(user.email, raw_token)
 
     def _create_account_token(self, user_id, token_type, lifetime):
+        self.account_token_repo.delete_expired()
         raw_token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
         self.account_token_repo.create(
