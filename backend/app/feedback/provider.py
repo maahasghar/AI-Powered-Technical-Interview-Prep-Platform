@@ -107,12 +107,14 @@ class OpenAIFeedbackProvider:
                 raise ValueError("Feedback response is too large")
         data = json.loads(body)
         content = None
+        refused = False
         for output in data.get("output") or []:
             if output.get("type") != "message":
                 continue
             for item in output.get("content") or []:
                 if item.get("type") == "refusal":
-                    raise ValueError("Feedback provider refused")
+                    refused = True
+                    continue
                 content = _serialized_output_item(item)
                 if content is not None:
                     break
@@ -121,15 +123,21 @@ class OpenAIFeedbackProvider:
         if content is None:
             status = data.get("status")
             message = _response_error_message(data)
+            if refused:
+                raise ValueError("Feedback provider refused")
             if message is not None:
                 if status == "completed":
                     raise ValueError(
                         f"Feedback response completed without content: {message}"
                     )
                 raise ValueError(f"Feedback response did not complete: {message}")
+            if status == "completed":
+                raise ValueError(
+                    "Feedback response completed without supported content"
+                )
             if status not in (None, "completed"):
                 raise ValueError("Feedback response did not complete")
-            raise ValueError("Feedback provider refused")
+            raise ValueError("Feedback response did not return usable content")
         if not isinstance(content, str):
             raise TypeError("Feedback provider refused")
         candidate = model.model_validate_json(content)
