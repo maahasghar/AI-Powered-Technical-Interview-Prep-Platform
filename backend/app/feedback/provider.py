@@ -147,10 +147,10 @@ class OpenAIFeedbackProvider:
         candidate = model.model_validate_json(content)
         usage = data.get("usage") or {}
         input_tokens = _count_usage_tokens(
-            usage.get("input_tokens", usage.get("input_tokens_details"))
+            usage.get("input_tokens") or usage.get("input_tokens_details")
         )
         output_tokens = _count_usage_tokens(
-            usage.get("output_tokens", usage.get("output_tokens_details"))
+            usage.get("output_tokens") or usage.get("output_tokens_details")
         )
         self.last_metadata = {
             "provider": "openai",
