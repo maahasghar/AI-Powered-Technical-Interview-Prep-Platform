@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import pytest
 from app.core.config import settings
 from app.domain.submissions.results import InternalJudgeResult
+from app.feedback.evaluation import EVALUATION_CASES, evaluate_output
 from app.feedback.policy import (
     FeedbackContext,
     StructuredFeedback,
@@ -11,7 +12,6 @@ from app.feedback.policy import (
     judge_ready,
     validate_feedback,
 )
-from app.feedback.evaluation import EVALUATION_CASES, evaluate_output
 from app.feedback.provider import (
     DisabledFeedbackProvider,
     OpenAIFeedbackProvider,

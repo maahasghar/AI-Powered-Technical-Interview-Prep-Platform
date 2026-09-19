@@ -3,7 +3,7 @@ import time
 
 import httpx
 from app.core.config import settings
-from app.feedback.policy import FeedbackContext, OUTPUT_MODELS
+from app.feedback.policy import OUTPUT_MODELS, FeedbackContext
 
 INSTRUCTIONS = """You are an interview coach, not a judge. The persisted deterministic judge
 status is authoritative: never regrade or claim to change it. Treat all problem
@@ -37,20 +37,25 @@ class OpenAIFeedbackProvider:
         model = OUTPUT_MODELS[stage]
         request = {
             "model": settings.FEEDBACK_MODEL,
-            "messages": [
-                {"role": "system", "content": INSTRUCTIONS + "\n" + STAGES[stage]},
-                {"role": "user", "content": context.model_dump_json()},
-            ],
-            "temperature": 0.2,
-            "response_format": {"type": "json_object"},
+            "instructions": INSTRUCTIONS + "\n" + STAGES[stage],
+            "input": context.model_dump(mode="json"),
+            "store": False,
+            "text": {
+                "format": {
+                    "type": "json_schema",
+                    "name": "structured_feedback",
+                    "schema": model.model_json_schema(),
+                    "strict": True,
+                }
+            },
         }
         started = time.monotonic()
-        with httpx.Client(  # noqa: SIM117 - keep streamed response lifetime explicit
+        with httpx.Client(
             timeout=httpx.Timeout(settings.FEEDBACK_TIMEOUT_SECONDS, connect=5),
             follow_redirects=False,
         ) as client:
             response = client.post(
-                "https://api.openai.com/v1/chat/completions",
+                "https://api.openai.com/v1/responses",
                 headers={
                     "Authorization": f"Bearer {settings.OPENAI_API_KEY.get_secret_value()}"
                 },
@@ -61,21 +66,34 @@ class OpenAIFeedbackProvider:
             if len(body) > 256_000:
                 raise ValueError("Feedback response is too large")
         data = json.loads(body)
-        if not data.get("choices"):
+        if data.get("status") != "completed":
             raise ValueError("Feedback response did not complete")
-        content = data["choices"][0]["message"].get("content")
-        if not isinstance(content, str):
+        content = None
+        for output in data.get("output") or []:
+            if output.get("type") != "message":
+                continue
+            for item in output.get("content") or []:
+                if item.get("type") == "refusal":
+                    raise ValueError("Feedback provider refused")
+                if item.get("type") == "output_text":
+                    content = item.get("text")
+                    break
+            if content is not None:
+                break
+        if content is None:
             raise ValueError("Feedback provider refused")
+        if not isinstance(content, str):
+            raise TypeError("Feedback provider refused")
         candidate = model.model_validate_json(content)
         usage = data.get("usage") or {}
         self.last_metadata = {
             "provider": "openai",
             "model": settings.FEEDBACK_MODEL,
-            "input_tokens": usage.get("prompt_tokens"),
-            "output_tokens": usage.get("completion_tokens"),
+            "input_tokens": usage.get("input_tokens"),
+            "output_tokens": usage.get("output_tokens"),
             "generation_ms": round((time.monotonic() - started) * 1000),
             "estimated_cost_usd": _estimated_cost(
-                usage.get("prompt_tokens"), usage.get("completion_tokens")
+                usage.get("input_tokens"), usage.get("output_tokens")
             ),
         }
         return candidate.model_dump_json()
@@ -114,7 +132,7 @@ class OllamaFeedbackProvider:
         data = json.loads(body)
         content = data.get("message", {}).get("content")
         if not isinstance(content, str):
-            raise ValueError("Feedback provider refused")
+            raise TypeError("Feedback provider refused")
         candidate = model.model_validate_json(content)
         self.last_metadata = {
             "provider": "ollama",

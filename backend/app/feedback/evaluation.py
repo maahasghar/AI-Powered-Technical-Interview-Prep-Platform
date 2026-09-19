@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.feedback.policy import FeedbackContext, StructuredFeedback, validate_feedback
+from app.feedback.policy import FeedbackContext, validate_feedback
 
 
 @dataclass(frozen=True)
@@ -23,7 +23,9 @@ EVALUATION_CASES = (
             problem_title="Two Sum",
             problem_description="Return indices of two values that add to target.",
             problem_categories=["arrays"],
-            public_examples=[{"input": {"nums": [2, 7], "target": 9}, "expected": [0, 1]}],
+            public_examples=[
+                {"input": {"nums": [2, 7], "target": 9}, "expected": [0, 1]}
+            ],
             language="python",
             submitted_code="def two_sum(nums, target): return [0, 1]",
             verdict="PASSED",
@@ -124,7 +126,14 @@ def evaluate_fixture(provider) -> dict:
             errors = evaluate_output(case, payload)
         except Exception as exc:  # noqa: BLE001 - isolate each fixture result
             errors = [type(exc).__name__]
-        results.append({"id": case.case_id, "stage": case.stage, "passed": not errors, "errors": errors})
+        results.append(
+            {
+                "id": case.case_id,
+                "stage": case.stage,
+                "passed": not errors,
+                "errors": errors,
+            }
+        )
     return {
         "cases": len(results),
         "passed": all(result["passed"] for result in results),

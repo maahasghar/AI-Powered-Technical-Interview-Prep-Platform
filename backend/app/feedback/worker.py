@@ -6,10 +6,10 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import httpx
+from app.core.config import settings
 from app.domain.auth.models import User  # noqa: F401
 from app.domain.problems.models import Problem
 from app.domain.submissions.models import Submission
-from app.core.config import settings
 from app.feedback.models import Feedback
 from app.feedback.policy import (
     build_feedback_context,
