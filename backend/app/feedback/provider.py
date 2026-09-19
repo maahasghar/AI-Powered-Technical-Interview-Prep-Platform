@@ -27,6 +27,16 @@ STAGES = {
 }
 
 
+def _serialized_output_item(item):
+    for key in ("text", "json", "value", "arguments"):
+        value = item.get(key)
+        if isinstance(value, str):
+            return value
+        if isinstance(value, (dict, list)):
+            return json.dumps(value)
+    return None
+
+
 class OpenAIFeedbackProvider:
     def generate(self, stage, context: FeedbackContext):
         if (
@@ -75,8 +85,8 @@ class OpenAIFeedbackProvider:
             for item in output.get("content") or []:
                 if item.get("type") == "refusal":
                     raise ValueError("Feedback provider refused")
-                if item.get("type") == "output_text":
-                    content = item.get("text")
+                content = _serialized_output_item(item)
+                if content is not None:
                     break
             if content is not None:
                 break
