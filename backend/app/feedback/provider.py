@@ -67,6 +67,10 @@ def _count_usage_tokens(value):
     return None
 
 
+class FeedbackProviderContentError(TypeError, ValueError):
+    pass
+
+
 class OpenAIFeedbackProvider:
     def generate(self, stage, context: FeedbackContext):
         if (
@@ -139,7 +143,7 @@ class OpenAIFeedbackProvider:
                 raise ValueError("Feedback response did not complete")
             raise ValueError("Feedback response did not return usable content")
         if not isinstance(content, str):
-            raise TypeError("Feedback provider refused")
+            raise FeedbackProviderContentError("Feedback provider refused")
         candidate = model.model_validate_json(content)
         usage = data.get("usage") or {}
         input_tokens = _count_usage_tokens(
@@ -192,7 +196,7 @@ class OllamaFeedbackProvider:
         data = json.loads(body)
         content = data.get("message", {}).get("content")
         if not isinstance(content, str):
-            raise TypeError("Feedback provider refused")
+            raise FeedbackProviderContentError("Feedback provider refused")
         candidate = model.model_validate_json(content)
         self.last_metadata = {
             "provider": "ollama",
