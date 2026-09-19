@@ -37,6 +37,36 @@ def _serialized_output_item(item):
     return None
 
 
+def _response_error_message(data):
+    error = data.get("error")
+    if isinstance(error, dict):
+        message = error.get("message") or error.get("code")
+        if isinstance(message, str):
+            return message
+    details = data.get("incomplete_details")
+    if isinstance(details, dict):
+        reason = details.get("reason") or details.get("message")
+        if isinstance(reason, str):
+            return reason
+    return None
+
+
+def _count_usage_tokens(value):
+    if isinstance(value, int):
+        return value
+    if isinstance(value, dict):
+        total = 0
+        found = False
+        for nested in value.values():
+            nested_count = _count_usage_tokens(nested)
+            if nested_count is not None:
+                total += nested_count
+                found = True
+        if found:
+            return total
+    return None
+
+
 class OpenAIFeedbackProvider:
     def generate(self, stage, context: FeedbackContext):
         if (
@@ -77,6 +107,9 @@ class OpenAIFeedbackProvider:
                 raise ValueError("Feedback response is too large")
         data = json.loads(body)
         if data.get("status") != "completed":
+            message = _response_error_message(data)
+            if message is not None:
+                raise ValueError(f"Feedback response did not complete: {message}")
             raise ValueError("Feedback response did not complete")
         content = None
         for output in data.get("output") or []:
@@ -91,20 +124,29 @@ class OpenAIFeedbackProvider:
             if content is not None:
                 break
         if content is None:
+            message = _response_error_message(data)
+            if message is not None:
+                raise ValueError(
+                    f"Feedback response completed without content: {message}"
+                )
             raise ValueError("Feedback provider refused")
         if not isinstance(content, str):
             raise TypeError("Feedback provider refused")
         candidate = model.model_validate_json(content)
         usage = data.get("usage") or {}
+        input_tokens = _count_usage_tokens(
+            usage.get("input_tokens", usage.get("input_tokens_details"))
+        )
+        output_tokens = _count_usage_tokens(
+            usage.get("output_tokens", usage.get("output_tokens_details"))
+        )
         self.last_metadata = {
             "provider": "openai",
             "model": settings.FEEDBACK_MODEL,
-            "input_tokens": usage.get("input_tokens"),
-            "output_tokens": usage.get("output_tokens"),
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
             "generation_ms": round((time.monotonic() - started) * 1000),
-            "estimated_cost_usd": _estimated_cost(
-                usage.get("input_tokens"), usage.get("output_tokens")
-            ),
+            "estimated_cost_usd": _estimated_cost(input_tokens, output_tokens),
         }
         return candidate.model_dump_json()
 
