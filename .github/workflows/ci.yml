@@ -55,7 +55,7 @@ jobs:
           exit 1
 
       - name: Apply database migrations
-        working-directory: backend/app
+        working-directory: backend/
         run: python -m alembic upgrade head
       
       - run: ruff check backend
