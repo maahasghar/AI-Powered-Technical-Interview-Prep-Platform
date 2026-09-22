@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-
-from app.core.config import settings
 from typing import Literal
 
+from app.core.config import settings
 from app.domain.submissions.models import Submission
 from app.feedback.models import Feedback
 from app.feedback.policy import StructuredFeedback, judge_ready, validate_feedback

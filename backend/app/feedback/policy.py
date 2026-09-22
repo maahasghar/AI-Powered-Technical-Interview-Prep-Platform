@@ -56,7 +56,9 @@ class StructuredFeedback(BaseModel):
     next_step: str = Field(min_length=1, max_length=2000)
 
 
-OUTPUT_MODELS = {stage: StructuredFeedback for stage in ("DIAGNOSIS", "HINT", "SOLUTION")}
+OUTPUT_MODELS = {
+    stage: StructuredFeedback for stage in ("DIAGNOSIS", "HINT", "SOLUTION")
+}
 
 
 class FeedbackContext(BaseModel):
@@ -85,14 +87,19 @@ def deterministic_feedback(stage, context: FeedbackContext):
         next_step = "Review the passing solution for clarity and consider whether its complexity can be improved."
     elif context.verdict == "RUNTIME_ERROR":
         strengths = ["The submission was accepted by the judge as valid Python input."]
-        issue = context.error_message or "The submission raised an exception during evaluation."
+        issue = (
+            context.error_message
+            or "The submission raised an exception during evaluation."
+        )
         next_step = "Trace the failing operation with the smallest input and add a guard for that case."
     elif context.verdict == "TIME_LIMIT_EXCEEDED":
         strengths = ["The submission was accepted by the judge and began execution."]
         issue = "The submission did not finish within the judge time limit."
         next_step = "Identify the innermost repeated work and look for a way to avoid recomputing it."
     else:
-        strengths = ["The submission was accepted by the judge and produced an evaluable result."]
+        strengths = [
+            "The submission was accepted by the judge and produced an evaluable result."
+        ]
         issue = "The implementation does not yet produce the expected result for every judge case."
         next_step = "Compare the first failing case with the problem contract and trace the state change that leads to the wrong result."
     return StructuredFeedback(
@@ -155,7 +162,9 @@ def build_feedback_context(submission, problem):
         tests_total=result.tests_total,
         runtime_ms=result.runtime_ms,
         memory_bytes=result.memory_bytes,
-        error_message=(result.message if submission.status == "RUNTIME_ERROR" else None),
+        error_message=(
+            result.message if submission.status == "RUNTIME_ERROR" else None
+        ),
     )
 
 

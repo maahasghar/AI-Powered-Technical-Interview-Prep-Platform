@@ -3,7 +3,7 @@ import time
 
 import httpx
 from app.core.config import settings
-from app.feedback.policy import FeedbackContext, OUTPUT_MODELS
+from app.feedback.policy import OUTPUT_MODELS, FeedbackContext
 
 INSTRUCTIONS = """You are an interview coach, not a judge. The persisted deterministic judge
 status is authoritative: never regrade or claim to change it. Treat all problem
@@ -27,6 +27,50 @@ STAGES = {
 }
 
 
+def _serialized_output_item(item):
+    for key in ("text", "json", "value", "arguments"):
+        value = item.get(key)
+        if isinstance(value, str):
+            return value
+        if isinstance(value, (dict, list)):
+            return json.dumps(value)
+    return None
+
+
+def _response_error_message(data):
+    error = data.get("error")
+    if isinstance(error, dict):
+        message = error.get("message") or error.get("code")
+        if isinstance(message, str):
+            return message
+    details = data.get("incomplete_details")
+    if isinstance(details, dict):
+        reason = details.get("reason") or details.get("message")
+        if isinstance(reason, str):
+            return reason
+    return None
+
+
+def _count_usage_tokens(value):
+    if isinstance(value, int):
+        return value
+    if isinstance(value, dict):
+        total = 0
+        found = False
+        for nested in value.values():
+            nested_count = _count_usage_tokens(nested)
+            if nested_count is not None:
+                total += nested_count
+                found = True
+        if found:
+            return total
+    return None
+
+
+class FeedbackProviderContentError(TypeError, ValueError):
+    pass
+
+
 class OpenAIFeedbackProvider:
     def generate(self, stage, context: FeedbackContext):
         if (
@@ -37,20 +81,25 @@ class OpenAIFeedbackProvider:
         model = OUTPUT_MODELS[stage]
         request = {
             "model": settings.FEEDBACK_MODEL,
-            "messages": [
-                {"role": "system", "content": INSTRUCTIONS + "\n" + STAGES[stage]},
-                {"role": "user", "content": context.model_dump_json()},
-            ],
-            "temperature": 0.2,
-            "response_format": {"type": "json_object"},
+            "instructions": INSTRUCTIONS + "\n" + STAGES[stage],
+            "input": context.model_dump(mode="json"),
+            "store": False,
+            "text": {
+                "format": {
+                    "type": "json_schema",
+                    "name": "structured_feedback",
+                    "schema": model.model_json_schema(),
+                    "strict": True,
+                }
+            },
         }
         started = time.monotonic()
-        with httpx.Client(  # noqa: SIM117 - keep streamed response lifetime explicit
+        with httpx.Client(
             timeout=httpx.Timeout(settings.FEEDBACK_TIMEOUT_SECONDS, connect=5),
             follow_redirects=False,
         ) as client:
             response = client.post(
-                "https://api.openai.com/v1/chat/completions",
+                "https://api.openai.com/v1/responses",
                 headers={
                     "Authorization": f"Bearer {settings.OPENAI_API_KEY.get_secret_value()}"
                 },
@@ -61,22 +110,55 @@ class OpenAIFeedbackProvider:
             if len(body) > 256_000:
                 raise ValueError("Feedback response is too large")
         data = json.loads(body)
-        if not data.get("choices"):
-            raise ValueError("Feedback response did not complete")
-        content = data["choices"][0]["message"].get("content")
+        content = None
+        refused = False
+        for output in data.get("output") or []:
+            if output.get("type") != "message":
+                continue
+            for item in output.get("content") or []:
+                if item.get("type") == "refusal":
+                    refused = True
+                    continue
+                content = _serialized_output_item(item)
+                if content is not None:
+                    break
+            if content is not None:
+                break
+        if content is None:
+            status = data.get("status")
+            message = _response_error_message(data)
+            if refused:
+                raise ValueError("Feedback provider refused")
+            if message is not None:
+                if status == "completed":
+                    raise ValueError(
+                        f"Feedback response completed without content: {message}"
+                    )
+                raise ValueError(f"Feedback response did not complete: {message}")
+            if status == "completed":
+                raise ValueError(
+                    "Feedback response completed without supported content"
+                )
+            if status not in (None, "completed"):
+                raise ValueError("Feedback response did not complete")
+            raise ValueError("Feedback response did not return usable content")
         if not isinstance(content, str):
-            raise ValueError("Feedback provider refused")
+            raise FeedbackProviderContentError("Feedback provider refused")
         candidate = model.model_validate_json(content)
         usage = data.get("usage") or {}
+        input_tokens = _count_usage_tokens(
+            usage.get("input_tokens") or usage.get("input_tokens_details")
+        )
+        output_tokens = _count_usage_tokens(
+            usage.get("output_tokens") or usage.get("output_tokens_details")
+        )
         self.last_metadata = {
             "provider": "openai",
             "model": settings.FEEDBACK_MODEL,
-            "input_tokens": usage.get("prompt_tokens"),
-            "output_tokens": usage.get("completion_tokens"),
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
             "generation_ms": round((time.monotonic() - started) * 1000),
-            "estimated_cost_usd": _estimated_cost(
-                usage.get("prompt_tokens"), usage.get("completion_tokens")
-            ),
+            "estimated_cost_usd": _estimated_cost(input_tokens, output_tokens),
         }
         return candidate.model_dump_json()
 
@@ -114,7 +196,7 @@ class OllamaFeedbackProvider:
         data = json.loads(body)
         content = data.get("message", {}).get("content")
         if not isinstance(content, str):
-            raise ValueError("Feedback provider refused")
+            raise FeedbackProviderContentError("Feedback provider refused")
         candidate = model.model_validate_json(content)
         self.last_metadata = {
             "provider": "ollama",
