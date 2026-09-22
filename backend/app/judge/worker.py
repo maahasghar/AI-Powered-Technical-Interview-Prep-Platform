@@ -14,6 +14,7 @@ from app.domain.submissions.results import InternalJudgeResult
 from app.infrastructure.db import SessionLocal
 from app.infrastructure.redis import RedisClient
 from app.infrastructure.submission_queue import SubmissionQueue
+from app.infrastructure.worker_health import heartbeat
 from app.judge.docker_runner import DockerRunner, JudgeUnavailable, evaluate
 from sqlalchemy import update
 
@@ -129,6 +130,7 @@ def main():
                     runner.reap_expired()
                     reconcile(queue)
                     last_reconcile = time.monotonic()
+                heartbeat(redis.client, "judge")
                 submission_id = queue.take()
                 if submission_id is not None:
                     process_submission(submission_id, runner)

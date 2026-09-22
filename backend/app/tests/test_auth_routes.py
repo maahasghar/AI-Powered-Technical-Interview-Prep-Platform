@@ -15,6 +15,16 @@ def test_health_endpoint(client):
     assert response.json() == {"status": "ok"}
 
 
+def test_readiness_endpoint_checks_dependencies(client, monkeypatch):
+    from app.core.container import container
+
+    monkeypatch.setattr(container.redis.client, "ping", lambda: True)
+    response = client.get("/readyz")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ready"}
+
+
 def test_login_route(client, user_factory):
     user_factory()
     response = client.post(

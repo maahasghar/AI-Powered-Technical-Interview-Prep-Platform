@@ -1,0 +1,45 @@
+services:
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.production
+      args:
+        REACT_APP_API_URL: ${REACT_APP_API_URL}
+    ports:
+      - "80:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: ./backend
+    env_file: .env.production
+    ports:
+      - "8000:8000"
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/readyz', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  judge-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    env_file: .env.production
+    command: ["python", "-m", "app.judge.worker"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
+  feedback-worker:
+    build: ./backend
+    env_file: .env.production
+    command: ["python", "-m", "app.feedback.worker"]
+    restart: unless-stopped

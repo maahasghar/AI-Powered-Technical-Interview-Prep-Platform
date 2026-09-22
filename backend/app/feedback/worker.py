@@ -22,6 +22,7 @@ from app.feedback.service import FEEDBACK_QUEUE, initial_feedback
 from app.infrastructure.db import SessionLocal
 from app.infrastructure.redis import RedisClient
 from app.infrastructure.submission_queue import SubmissionQueue
+from app.infrastructure.worker_health import heartbeat
 from sqlalchemy import exists, update
 
 logger = logging.getLogger(__name__)
@@ -41,6 +42,8 @@ def _retry_delay(exc: Exception, attempt: int) -> float:
 
 
 def _is_transient(exc: Exception) -> bool:
+    if isinstance(exc, ValueError):
+        return True
     if isinstance(exc, (httpx.TimeoutException, httpx.NetworkError)):
         return True
     return isinstance(exc, httpx.HTTPStatusError) and (
@@ -224,6 +227,7 @@ def main():
                 if time.monotonic() - last_scan > 5:
                     reconcile_feedback(queue)
                     last_scan = time.monotonic()
+                heartbeat(redis.client, "feedback")
                 feedback_id = queue.take()
                 if feedback_id is not None:
                     process_feedback(feedback_id, provider)

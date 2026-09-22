@@ -5,6 +5,7 @@ from fastapi import HTTPException
 
 from app.audit import _safe_metadata
 from app.core.rate_limit import RedisRateLimiter
+from app.infrastructure.worker_health import heartbeat
 
 
 class FakeRedis:
@@ -18,6 +19,11 @@ class FakeRedis:
 
     def expire(self, key, seconds):
         self.expiries[key] = seconds
+
+    def set(self, key, value, ex=None):
+        self.values[key] = value
+        if ex is not None:
+            self.expiries[key] = ex
 
 
 def test_rate_limiter_allows_limit_then_returns_429():
@@ -40,3 +46,11 @@ def test_audit_metadata_drops_sensitive_values():
     safe = _safe_metadata({"password": "secret", "code": "source", "screen": "login"})
     assert safe == {"screen": "login"}
     assert "secret" not in json.dumps(safe)
+
+
+def test_worker_heartbeat_sets_a_ttl_key():
+    redis = FakeRedis()
+
+    assert heartbeat(redis, "judge") is True
+    assert redis.values[next(iter(redis.values))] == "1"
+    assert redis.expiries[next(iter(redis.expiries))] == 30

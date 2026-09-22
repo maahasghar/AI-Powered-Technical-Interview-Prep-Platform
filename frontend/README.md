@@ -26,6 +26,7 @@ Installing packages on the host does not update this container volume.
 | `/problems/:problemId/editor`                   | Direct editor link                                                     |
 | `/submissions/:submissionId`                    | Saved code, status, and available result                               |
 | `/history`                                      | Paginated submission history                                           |
+| `/progress`                                     | Attempted, solved, and recent activity summary                         |
 
 Protected routes wait for `AuthProvider` to restore the session through
 `POST /auth/refresh` and load `GET /users/me` before deciding whether to redirect.
@@ -65,9 +66,15 @@ returned by the API. See [submission execution](../docs/submission_execution.md)
 for the solution contract, limits, and worker setup. Archived problems cannot
 accept new submissions, while saved submission code remains readable.
 
-Run `CI=true npm test -- --watchAll=false --runInBand` for route/API tests and
-`npm run typecheck` for client contract checks, and `npm run build` for a production bundle. Production hosting must serve `index.html`
+Run `CI=true npm test -- --watchAll=false --runInBand` for route/API tests,
+`npm run test:e2e` for the Chromium browser journey, `npm run typecheck` for
+client contract checks, and `npm run build` for a production bundle. Install
+the browser first with `npx playwright install chromium`. Production hosting must serve `index.html`
 for non-API paths so direct links and browser refresh work with BrowserRouter.
+
+For production, build `frontend/Dockerfile.production`; it serves the compiled
+React app through Nginx and exposes `/healthz`. See the
+[production deployment runbook](../docs/production-deployment.md).
 Routing uses [React Router's declarative routes](https://reactrouter.com/docs/en/v6/start/concepts).
 
 Submission results use a typed object containing a safe message, aggregate test

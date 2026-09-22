@@ -19,6 +19,7 @@ from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
+from fastapi import HTTPException
 
 
 @asynccontextmanager
@@ -78,6 +79,17 @@ def hello_world():
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/readyz")
+def readiness():
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+        container.redis.client.ping()
+    except Exception:
+        raise HTTPException(status_code=503, detail="Service is not ready") from None
+    return {"status": "ready"}
 
 
 app.add_middleware(RequestIDMiddleware)
