@@ -7,7 +7,7 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import engine_from_config
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app import audit as audit_models  # noqa: F401
 

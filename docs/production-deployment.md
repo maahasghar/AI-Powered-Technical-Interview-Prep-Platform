@@ -30,7 +30,7 @@ Redis containers.
 
    ```sh
    docker compose -f docker-compose.production.yml run --rm api \
-     sh -lc 'cd /app/app && alembic upgrade head'
+     sh -lc 'cd /app && alembic upgrade head'
    ```
 
 5. Deploy the web, API, judge-worker, and feedback-worker services:

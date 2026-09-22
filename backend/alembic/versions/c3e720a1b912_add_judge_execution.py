@@ -1,4 +1,4 @@
-"""Add hidden judge tests and recoverable submission execution. """
+"""Add hidden judge tests and recoverable submission execution."""
 
 import sqlalchemy as sa
 from alembic import op

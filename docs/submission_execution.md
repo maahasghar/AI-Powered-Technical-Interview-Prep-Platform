@@ -90,7 +90,7 @@ From the repository root:
 ```sh
 docker compose build backend worker judge-image
 docker compose up -d postgres redis
-docker compose run --rm -w /app/app backend python -m alembic upgrade head
+docker compose run --rm -w /app backend python -m alembic upgrade head
 docker compose run --rm backend python -m app.scripts.seed_problems --backfill-hidden
 docker compose up -d backend worker frontend
 ```
