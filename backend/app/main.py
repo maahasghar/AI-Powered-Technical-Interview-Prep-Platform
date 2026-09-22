@@ -87,8 +87,8 @@ def readiness():
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
         container.redis.client.ping()
-    except Exception:
-        raise HTTPException(status_code=503, detail="Service is not ready") from None
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Service is not ready") from exc
     return {"status": "ready"}
 
 

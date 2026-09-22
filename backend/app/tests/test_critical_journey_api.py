@@ -1,6 +1,5 @@
 from unittest.mock import Mock
 
-from app.core.container import container
 from app.domain.submissions.results import CaseResult
 from app.feedback.models import Feedback
 from app.feedback.policy import StructuredFeedback
