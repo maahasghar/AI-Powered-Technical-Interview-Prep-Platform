@@ -1,6 +1,6 @@
 # AI‑Powered Technical Interview Prep Platform
 
-## Overview
+## Overview 
 
 This project is a **production‑grade, full‑stack technical interview preparation platform** designed with real‑world engineering practices. Over the past month, the focus has been on building a **clean backend architecture**, **secure authentication**, and a **professional developer workflow** (Docker, pre‑commit, CI).
 
