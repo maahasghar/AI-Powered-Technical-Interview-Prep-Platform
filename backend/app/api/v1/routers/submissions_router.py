@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from app.api.v1.routers.problems_router import get_problems_service
-from app.core.container import container
 from app.core.config import settings
+from app.core.container import container
 from app.core.rate_limit import RedisRateLimiter
 from app.domain.auth.service import AuthService
 from app.domain.problems.service import ProblemsService

@@ -137,18 +137,24 @@ def test_provider_protocol_and_stage_boundary(monkeypatch):
     def handle(request):
         payload = json.loads(request.content)
         captured.append(payload)
-        context = json.loads(payload["messages"][1]["content"])
-        assert "hidden_tests" not in context
+        assert "hidden_tests" not in payload["input"]
         return httpx.Response(
             200,
             json={
-                "choices": [{
-                    "message": {
-                        "content": structured_payload(
-                            likely_issue=None, hint="Trace the loop invariant."
-                        )
+                "status": "completed",
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [
+                            {
+                                "type": "output_text",
+                                "text": structured_payload(
+                                    likely_issue=None, hint="Trace the loop invariant."
+                                ),
+                            }
+                        ],
                     }
-                }],
+                ],
             },
         )
 
@@ -175,15 +181,29 @@ def test_provider_protocol_and_stage_boundary(monkeypatch):
         context,
     )
     assert json.loads(result)["complexity"] == {"time": "O(n)", "space": "O(1)"}
-    assert captured[0]["response_format"] == {"type": "json_object"}
-    assert "untrusted data" in captured[0]["messages"][0]["content"]
+    assert captured[0]["store"] is False
+    schema = captured[0]["text"]["format"]["schema"]
+    assert schema["additionalProperties"] is False
+    assert set(schema["properties"]) == {
+        "strengths",
+        "likely_issue",
+        "hint",
+        "complexity",
+        "next_step",
+    }
+    assert "untrusted data" in captured[0]["instructions"]
 
 
 @pytest.mark.parametrize(
     "body",
     [
-        {"choices": []},
-        {"choices": [{"message": {"content": None}}]},
+        {"status": "incomplete"},
+        {
+            "status": "completed",
+            "output": [
+                {"type": "message", "content": [{"type": "refusal", "refusal": "no"}]}
+            ],
+        },
     ],
 )
 def test_provider_rejects_incomplete_and_refused_responses(monkeypatch, body):

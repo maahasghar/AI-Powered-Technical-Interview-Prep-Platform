@@ -3,8 +3,8 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
-from app.core.config import settings
 from app.audit import record_audit
+from app.core.config import settings
 from app.core.security import (  # generate_verification_token,
     create_access_token,
     create_refresh_token,

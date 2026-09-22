@@ -9,6 +9,8 @@ from sqlalchemy.engine import engine_from_config
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
+from app import audit as audit_models  # noqa: F401
+
 # ---- ADD THIS (this lets Alembic auto-detect schema changes) ----
 from app.core.config import settings
 from app.domain.auth import models as auth_models  # noqa: F401
@@ -17,7 +19,6 @@ from app.domain.problems import models as problem_models  # noqa: F401
 from app.domain.submissions import models as submission_models  # noqa: F401
 from app.domain.user import models as user_models  # noqa: F401
 from app.feedback import models as feedback_models  # noqa: F401
-from app import audit as audit_models  # noqa: F401
 from app.infrastructure.db import Base
 
 # -------------------

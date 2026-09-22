@@ -46,7 +46,9 @@ def test_authenticated_practice_journey_reaches_result_feedback_and_history(
     assert result.json()["result"]["tests_passed"] == 1
 
     db_session.expire_all()
-    feedback_row = db_session.query(Feedback).filter_by(submission_id=submission_id).one()
+    feedback_row = (
+        db_session.query(Feedback).filter_by(submission_id=submission_id).one()
+    )
     provider = Mock()
     provider.generate.return_value = StructuredFeedback(
         strengths=["The function follows the requested contract."],
@@ -58,7 +60,9 @@ def test_authenticated_practice_journey_reaches_result_feedback_and_history(
     process_feedback(feedback_row.id, provider, factory)
     db_session.expire_all()
 
-    feedback = client.get(f"/api/v1/submissions/{submission_id}/feedback", headers=headers)
+    feedback = client.get(
+        f"/api/v1/submissions/{submission_id}/feedback", headers=headers
+    )
     assert feedback.status_code == 200
     assert feedback.json()["items"][0]["status"] == "READY"
     assert feedback.json()["items"][0]["feedback"]["strengths"]

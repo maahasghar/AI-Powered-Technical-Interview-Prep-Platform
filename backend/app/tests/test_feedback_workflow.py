@@ -150,7 +150,9 @@ def test_duplicate_jobs_and_disallowed_output_are_isolated(db_session, judged):
     process_feedback(row.id, provider, factory)
     process_feedback(row.id, provider, factory)
     db_session.refresh(row)
-    assert row.status == "READY" and row.source == "fallback" and row.payload is not None
+    assert (
+        row.status == "READY" and row.source == "fallback" and row.payload is not None
+    )
     assert provider.generate.call_count == 2
 
 

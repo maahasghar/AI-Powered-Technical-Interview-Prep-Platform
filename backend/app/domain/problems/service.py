@@ -29,20 +29,26 @@ class ProblemsService:
         problem = self.problems_repo.create(
             title, difficulty, categories, description, test_cases, hidden_test_cases
         )
-        record_audit(self.problems_repo.db.session, "PROBLEM_CREATED", target_id=problem.id)
+        record_audit(
+            self.problems_repo.db.session, "PROBLEM_CREATED", target_id=problem.id
+        )
         self.problems_repo.db.commit()
         return problem
 
     def update_problem(self, problem_id: int, **kwargs):
         problem = self.problems_repo.update(problem_id, **kwargs)
         if problem:
-            record_audit(self.problems_repo.db.session, "PROBLEM_UPDATED", target_id=problem_id)
+            record_audit(
+                self.problems_repo.db.session, "PROBLEM_UPDATED", target_id=problem_id
+            )
             self.problems_repo.db.commit()
         return problem
 
     def archive_problem(self, problem_id: int):
         problem = self.problems_repo.archive(problem_id)
         if problem:
-            record_audit(self.problems_repo.db.session, "PROBLEM_DELETED", target_id=problem_id)
+            record_audit(
+                self.problems_repo.db.session, "PROBLEM_DELETED", target_id=problem_id
+            )
             self.problems_repo.db.commit()
         return problem

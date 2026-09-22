@@ -15,12 +15,14 @@ def upgrade():
         sa.Column("hidden_test_cases", sa.Text(), nullable=False, server_default="[]"),
     )
     op.add_column("submissions", sa.Column("execution_id", sa.String(), nullable=True))
-    op.execute("""UPDATE submissions SET status = CASE lower(status)
+    op.execute(
+        """UPDATE submissions SET status = CASE lower(status)
         WHEN 'accepted' THEN 'PASSED' WHEN 'passed' THEN 'PASSED'
         WHEN 'rejected' THEN 'FAILED' WHEN 'failed' THEN 'FAILED'
         WHEN 'runtime_error' THEN 'RUNTIME_ERROR'
         WHEN 'time_limit_exceeded' THEN 'TIME_LIMIT_EXCEEDED'
-        ELSE 'QUEUED' END""")
+        ELSE 'QUEUED' END"""
+    )
     op.alter_column("submissions", "status", nullable=False, server_default="QUEUED")
     op.create_index("ix_submissions_status", "submissions", ["status"])
 

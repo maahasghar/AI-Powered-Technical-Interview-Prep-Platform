@@ -13,12 +13,23 @@ class AuditEvent(Base):
     target_id = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
     metadata_json = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
 
 _SENSITIVE_KEYS = {
-    "password", "password_hash", "token", "refresh_token", "access_token",
-    "authorization", "api_key", "secret", "code", "source_code", "hidden_tests",
+    "password",
+    "password_hash",
+    "token",
+    "refresh_token",
+    "access_token",
+    "authorization",
+    "api_key",
+    "secret",
+    "code",
+    "source_code",
+    "hidden_tests",
 }
 
 
@@ -30,7 +41,14 @@ def _safe_metadata(metadata):
     }
 
 
-def record_audit(session, event_type, actor_user_id=None, target_id=None, ip_address=None, metadata=None):
+def record_audit(
+    session,
+    event_type,
+    actor_user_id=None,
+    target_id=None,
+    ip_address=None,
+    metadata=None,
+):
     import json
 
     event = AuditEvent(

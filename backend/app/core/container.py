@@ -7,10 +7,10 @@ from app.domain.problems.repository import ProblemsRepository
 from app.domain.problems.service import ProblemsService
 from app.domain.submissions.repository import SubmissionsRepository
 from app.domain.submissions.service import SubmissionsService
-from app.domain.user.repository import UserRepository
-from app.domain.user.service import UserService
 from app.domain.user.progress_repository import ProgressRepository
 from app.domain.user.progress_service import ProgressService
+from app.domain.user.repository import UserRepository
+from app.domain.user.service import UserService
 from app.infrastructure.db import Database
 from app.infrastructure.email_client import EmailClient
 from app.infrastructure.redis import RedisClient

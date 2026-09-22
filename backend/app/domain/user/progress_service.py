@@ -6,7 +6,6 @@ from app.domain.user.progress_schemas import (
     ProgressResponse,
 )
 
-
 SOLVED_STATUS = "PASSED"
 
 
@@ -39,9 +38,9 @@ class ProgressService:
         return ProgressResponse(
             total_attempted=total_attempted,
             total_solved=total_solved,
-            solve_rate=round(total_solved / total_attempted, 4)
-            if total_attempted
-            else 0.0,
+            solve_rate=(
+                round(total_solved / total_attempted, 4) if total_attempted else 0.0
+            ),
             by_difficulty={
                 key: _bucket(value) for key, value in sorted(by_difficulty.items())
             },

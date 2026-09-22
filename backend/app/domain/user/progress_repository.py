@@ -1,7 +1,6 @@
-from sqlalchemy import select
-
 from app.domain.problems.models import Problem
 from app.domain.submissions.models import Submission
+from sqlalchemy import select
 
 
 class ProgressRepository:

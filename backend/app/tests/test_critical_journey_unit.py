@@ -5,9 +5,21 @@ from app.domain.user.progress_service import ProgressService
 
 def test_progress_unit_calculates_solve_rate_and_breakdowns():
     rows = [
-        SimpleNamespace(status="PASSED", difficulty=1, categories=["arrays"], created_at=None),
-        SimpleNamespace(status="FAILED", difficulty=1, categories=["arrays", "hashing"], created_at=None),
-        SimpleNamespace(status="RUNTIME_ERROR", difficulty=3, categories=["hashing"], created_at=None),
+        SimpleNamespace(
+            status="PASSED", difficulty=1, categories=["arrays"], created_at=None
+        ),
+        SimpleNamespace(
+            status="FAILED",
+            difficulty=1,
+            categories=["arrays", "hashing"],
+            created_at=None,
+        ),
+        SimpleNamespace(
+            status="RUNTIME_ERROR",
+            difficulty=3,
+            categories=["hashing"],
+            created_at=None,
+        ),
     ]
     repository = SimpleNamespace(get_submission_rows=lambda user_id: rows)
 

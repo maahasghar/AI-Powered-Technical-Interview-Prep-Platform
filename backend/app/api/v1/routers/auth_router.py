@@ -48,7 +48,12 @@ def register(
     payload: RegisterRequest,
     auth_service: AuthService = Depends(get_auth_service),
 ):
-    _limit(request, "register", settings.REGISTER_RATE_LIMIT, settings.REGISTER_RATE_WINDOW_SECONDS)
+    _limit(
+        request,
+        "register",
+        settings.REGISTER_RATE_LIMIT,
+        settings.REGISTER_RATE_WINDOW_SECONDS,
+    )
     return auth_service.register(payload)
 
 
@@ -104,7 +109,9 @@ def login(
     response: Response,
     auth_service: AuthService = Depends(get_auth_service),
 ):
-    _limit(request, "login", settings.LOGIN_RATE_LIMIT, settings.LOGIN_RATE_WINDOW_SECONDS)
+    _limit(
+        request, "login", settings.LOGIN_RATE_LIMIT, settings.LOGIN_RATE_WINDOW_SECONDS
+    )
     return token_response(auth_service.login(payload), response)
 
 
@@ -169,7 +176,12 @@ def resend_verification(
     payload: ForgotPasswordRequest,
     auth_service: AuthService = Depends(get_auth_service),
 ):
-    _limit(request, "resend-verification", settings.RESEND_VERIFICATION_RATE_LIMIT, settings.RESEND_VERIFICATION_RATE_WINDOW_SECONDS)
+    _limit(
+        request,
+        "resend-verification",
+        settings.RESEND_VERIFICATION_RATE_LIMIT,
+        settings.RESEND_VERIFICATION_RATE_WINDOW_SECONDS,
+    )
     auth_service.resend_verification(payload.email)
     return MessageResponse(
         message="If the account exists, a verification email was sent."

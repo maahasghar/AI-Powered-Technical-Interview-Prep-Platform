@@ -1,11 +1,10 @@
 import json
 
 import pytest
-from fastapi import HTTPException
-
 from app.audit import _safe_metadata
 from app.core.rate_limit import RedisRateLimiter
 from app.infrastructure.worker_health import heartbeat
+from fastapi import HTTPException
 
 
 class FakeRedis:

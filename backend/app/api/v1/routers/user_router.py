@@ -1,7 +1,7 @@
 from app.core.container import container
 from app.domain.auth.service import AuthService
-from app.domain.user.schemas import UserProfileUpdate, UserResponse
 from app.domain.user.progress_schemas import ProgressResponse
+from app.domain.user.schemas import UserProfileUpdate, UserResponse
 from app.infrastructure.db import get_db_session
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
@@ -34,7 +34,9 @@ def delete_current_user(
 ):
     if not user_service.delete_account(current_user.id):
         raise HTTPException(status_code=404, detail="User not found")
-    response.delete_cookie("refresh_token", path="/api/v1/auth", httponly=True, samesite="lax")
+    response.delete_cookie(
+        "refresh_token", path="/api/v1/auth", httponly=True, samesite="lax"
+    )
 
 
 @router.get("/me/progress", response_model=ProgressResponse)

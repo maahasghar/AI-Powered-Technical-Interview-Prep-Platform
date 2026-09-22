@@ -53,9 +53,9 @@ class UserService:
             .all()
         ]
         if submission_ids:
-            session.query(Feedback).filter(Feedback.submission_id.in_(submission_ids)).delete(
-                synchronize_session=False
-            )
+            session.query(Feedback).filter(
+                Feedback.submission_id.in_(submission_ids)
+            ).delete(synchronize_session=False)
         session.query(Submission).filter(Submission.user_id == user_id).delete(
             synchronize_session=False
         )

@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 
+from app import audit as audit_models  # noqa: F401
 from app.api.v1.routers.auth_router import router as auth_router
 from app.api.v1.routers.problems_router import router as problem_router
 from app.api.v1.routers.submissions_router import router as submission_router
@@ -8,18 +9,16 @@ from app.core.config import settings
 from app.core.container import container
 from app.core.logging import RequestIDMiddleware, setup_logging
 from app.core.sentry import init_sentry
-from app import audit as audit_models  # noqa: F401
 from app.domain.auth.exceptions import (
     EmailNotVerifiedError,
     InvalidCredentials,
     Unauthorized,
 )
 from app.infrastructure.db import engine
-from fastapi import FastAPI, status
+from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
-from fastapi import HTTPException
 
 
 @asynccontextmanager
