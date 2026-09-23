@@ -88,7 +88,7 @@ custom problems need hidden tests supplied by an administrator.
 From the repository root:
 
 ```sh
-docker compose build backend worker judge-image
+docker compose build backend worker
 docker compose up -d postgres redis
 docker compose run --rm -w /app backend python -m alembic upgrade head
 docker compose run --rm backend python -m app.scripts.seed_problems --backfill-hidden
@@ -101,31 +101,22 @@ and nonempty hidden cases. Omit it if empty hidden cases were intentional.
 Migrations normalize legacy submission statuses; unfinished legacy submissions
 are queued and evaluated, with unsupported languages receiving `RUNTIME_ERROR`.
 
-For a host worker, install backend dependencies and Docker CLI, build
-`docker build -t interview-judge-python:local backend/judge`, then run
+For a host worker, install backend dependencies, set `E2B_API_KEY`, then run
 `python -m app.judge.worker` from `backend` with DATABASE_URL, REDIS_URL and
-JWT_SECRET configured. `JUDGE_IMAGE` can select a prebuilt, trusted image.
+JWT_SECRET configured. The worker is a normal non-privileged process and does
+not require Docker or a Docker socket.
 
 ## Isolation and limits
 
-Each temporary container uses a non-root UID, no network, a read-only root
-filesystem, no host bind mounts, all capabilities dropped, and
-`no-new-privileges`. Limits are one CPU, 128 MiB RAM with no extra swap, 32
-processes, 64 open files, 64 KiB per file, 16 MiB scratch tmpfs, 8 MiB shared
-memory, three CPU seconds, and a five-second in-container watchdog. The worker
-also enforces a six-second case deadline, a bounded suite budget, and 64 KiB of
-captured output. Docker logging is disabled. Only source and the current test's
-input enter the container; expected answers remain in PostgreSQL/the worker.
-The worker force-removes containers on every exit path and reaps expired labeled
-containers after worker restarts. See Docker's [resource limits](https://docs.docker.com/engine/containers/resource_constraints/)
-and [run options](https://docs.docker.com/reference/cli/docker/container/run).
-
-The Compose worker mounts the Docker socket to launch sibling judge containers.
-That socket gives the trusted worker control over its Docker host. Judge
-containers never receive it or the backend environment. Use a dedicated judge
-host/VM for an internet-facing deployment; ordinary Docker containers share the
-host kernel and are not a VM security boundary. Keep the host/runtime patched.
-The included Compose configuration is a local-development setup.
+Each test case uses a fresh E2B sandbox with outbound network access disabled.
+The worker writes only submitted source, a current case's input, and its fixed
+runner into that sandbox; expected answers remain in PostgreSQL/the worker. E2B
+enforces the per-command timeout, and the worker also uses a bounded E2B API
+request timeout and six-second case budget. Sandboxes are terminated in a
+`finally` block after success, user-code error, timeout, or API failure. A fresh
+sandbox per case preserves the existing test isolation semantics and prevents
+state from leaking between sample and hidden tests, at the cost of one short-lived
+sandbox per test case.
 
 ## Queue recovery
 
@@ -147,12 +138,13 @@ than a wrong-answer verdict. Monitor queue age, worker logs and runtime health.
 
 ```sh
 # Requires a disposable PostgreSQL database: the suite recreates its tables.
-RUN_DOCKER_TESTS=1 RUN_REDIS_TESTS=1 pytest backend/app/tests
+RUN_REDIS_TESTS=1 pytest backend/app/tests
 npm --prefix frontend run typecheck
 CI=true npm --prefix frontend test -- --watchAll=false
 npm --prefix frontend run build
 ```
 
-CI builds the judge image and exercises real Docker timeout, memory, output,
-filesystem and network behavior, alongside database worker/queue tests. Locally,
-Docker and Redis integration tests are opt-in through the flags above.
+CI mocks the E2B SDK and exercises provider outcome mapping, bounded retries,
+sandbox cleanup, database worker state transitions, and Redis queue behavior.
+No CI test makes a real E2B API call. Locally, Redis integration tests remain
+opt-in through the flag above.

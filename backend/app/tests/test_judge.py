@@ -9,7 +9,10 @@ from app.domain.submissions.results import CaseResult
 from app.domain.submissions.schemas import SubmissionCreate
 from app.domain.submissions.service import SubmissionsService
 from app.infrastructure.submission_queue import SubmissionQueue
-from app.judge.docker_runner import DockerRunner, evaluate
+from app.judge.execution_provider import E2BExecutionProvider
+from app.judge.worker import evaluate
+from e2b import CommandExitException, TimeoutException
+from e2b.exceptions import RateLimitException
 from redis.exceptions import ConnectionError
 
 
@@ -89,74 +92,139 @@ def test_empty_test_suite_cannot_pass():
     assert evaluate("code", [], Mock()).status == "RUNTIME_ERROR"
 
 
-def test_container_restrictions_are_explicit():
-    command = DockerRunner().command("example", "code", {"x": 1})
-    for option, value in {
-        "--network": "none",
-        "--cap-drop": "ALL",
-        "--user": "65534:65534",
-        "--memory": "128m",
-        "--memory-swap": "128m",
-        "--pids-limit": "32",
-        "--cpus": "1",
-        "--log-driver": "none",
-    }.items():
-        assert command[command.index(option) + 1] == value
-    assert "--read-only" in command
-    assert "no-new-privileges=true" in command
-    assert not any(
-        option in command for option in ["--privileged", "--volume", "--env", "--mount"]
+def e2b_provider(sandbox):
+    factory = Mock()
+    factory.create.return_value = sandbox
+    provider = E2BExecutionProvider(
+        api_key="test-key", request_timeout=3, sandbox_factory=factory
     )
+    provider._sleep_with_backoff = Mock()
+    return provider, factory
 
 
-@pytest.mark.skipif(
-    os.getenv("RUN_DOCKER_TESTS") != "1", reason="Requires built judge image and Docker"
-)
-@pytest.mark.parametrize(
-    "code,expected",
-    [
-        ("def solve(x): return x + 1", "PASSED"),
-        ("def solve(x): return 0", "FAILED"),
-        ("def solve(x): raise ValueError('secret')", "RUNTIME_ERROR"),
-        ("def solve(x):\n while True: pass", "TIME_LIMIT_EXCEEDED"),
-        ("def solve(x):\n import time\n time.sleep(60)", "TIME_LIMIT_EXCEEDED"),
-        ("def solve(x): return bytearray(512 * 1024 * 1024)", "RUNTIME_ERROR"),
-        (
-            "def solve(x):\n import os\n while True: os.write(1, b'x' * 8192)",
-            "RUNTIME_ERROR",
-        ),
-    ],
-)
-def test_real_docker_verdicts(code, expected):
-    assert (
-        evaluate(code, [{"input": {"x": 1}, "expected": 2}], DockerRunner()).status
-        == expected
+def test_e2b_provider_captures_stdout_and_cleans_up_sandbox():
+    sandbox = Mock()
+    sandbox.commands.run.return_value = SimpleNamespace(
+        stdout="2\n", stderr="", exit_code=0, error=None
     )
+    provider, factory = e2b_provider(sandbox)
+
+    result = provider.run_case("def solve(x): return x + 1", {"x": 1}, seconds=2)
+
+    assert result.status == "PASSED"
+    assert result.actual == 2
+    factory.create.assert_called_once_with(
+        api_key="test-key",
+        timeout=10,
+        request_timeout=3.0,
+        secure=True,
+        allow_internet_access=False,
+    )
+    assert sandbox.files.write.call_count == 3
+    sandbox.commands.run.assert_called_once_with(
+        "python /tmp/runner.py", timeout=2, request_timeout=3.0
+    )
+    sandbox.kill.assert_called_once_with(request_timeout=3.0)
 
 
-@pytest.mark.skipif(
-    os.getenv("RUN_DOCKER_TESTS") != "1", reason="Requires built judge image and Docker"
-)
-def test_real_container_isolation():
-    code = """def solve():
- import os, socket
- checks = [os.getuid() == 65534, os.getenv("JWT_SECRET") is None, not os.path.exists("/var/run/docker.sock")]
- try:
-  open("/root-write", "w").write("bad")
-  checks.append(False)
- except OSError:
-  checks.append(True)
- try:
-  socket.create_connection(("1.1.1.1", 53), timeout=0.5)
-  checks.append(False)
- except OSError:
-  checks.append(True)
- return all(checks)
-"""
-    outcome = DockerRunner().run_case(code, {})
+def test_e2b_provider_preserves_wrong_answer_for_worker_evaluation():
+    sandbox = Mock()
+    sandbox.commands.run.return_value = SimpleNamespace(
+        stdout="1", stderr="", exit_code=0, error=None
+    )
+    provider, _ = e2b_provider(sandbox)
+
+    outcome = provider.run_case("def solve(x): return x", {"x": 1}, seconds=2)
+    runner = Mock()
+    runner.run_case.return_value = outcome
+    result = evaluate("code", [{"input": {"x": 1}, "expected": 2}], runner)
+
     assert outcome.status == "PASSED"
-    assert outcome.actual is True
-    assert outcome.runtime_ms > 0
+    assert result.status == "FAILED"
+
+
+def test_e2b_provider_maps_user_runtime_exception_and_cleans_up():
+    sandbox = Mock()
+    sandbox.commands.run.side_effect = CommandExitException(
+        "Traceback", "", 1, "command exited"
+    )
+    provider, _ = e2b_provider(sandbox)
+
+    result = provider.run_case("def solve(): raise RuntimeError", {}, seconds=2)
+
+    assert result.status == "RUNTIME_ERROR"
+    assert result.verdict_code == "RUNTIME_ERROR"
+    sandbox.kill.assert_called_once_with(request_timeout=3.0)
+
+
+def test_e2b_provider_maps_execution_timeout_and_cleans_up():
+    sandbox = Mock()
+    sandbox.commands.run.side_effect = TimeoutException("execution timed out")
+    provider, _ = e2b_provider(sandbox)
+
+    result = provider.run_case("def solve():\n while True: pass", {}, seconds=2)
+
+    assert result.status == "TIME_LIMIT_EXCEEDED"
+    sandbox.kill.assert_called_once_with(request_timeout=3.0)
+
+
+def test_e2b_provider_retries_transient_api_failures_with_cleanup():
+    sandbox = Mock()
+    sandbox.commands.run.return_value = SimpleNamespace(
+        stdout="7", stderr="", exit_code=0, error=None
+    )
+    factory = Mock()
+    factory.create.side_effect = [RateLimitException("retry"), sandbox]
+    provider = E2BExecutionProvider(
+        api_key="test-key", request_timeout=3, sandbox_factory=factory
+    )
+    provider._sleep_with_backoff = Mock()
+
+    result = provider.run_case("def solve(): return 7", {}, seconds=2)
+
+    assert result.status == "PASSED"
+    assert factory.create.call_count == 2
+    provider._sleep_with_backoff.assert_called_once()
+    sandbox.kill.assert_called_once_with(request_timeout=3.0)
+
+
+def test_e2b_provider_returns_unavailable_after_api_failure():
+    factory = Mock()
+    factory.create.side_effect = RateLimitException("over quota")
+    provider = E2BExecutionProvider(
+        api_key="test-key", request_timeout=3, max_attempts=1, sandbox_factory=factory
+    )
+
+    result = provider.run_case("def solve(): return 1", {}, seconds=2)
+
+    assert result.status == "RUNTIME_ERROR"
+    assert result.verdict_code == "UNAVAILABLE"
+
+
+def test_e2b_provider_rejects_malformed_stdout_and_cleans_up():
+    sandbox = Mock()
+    sandbox.commands.run.return_value = SimpleNamespace(
+        stdout="not-json", stderr="", exit_code=0, error=None
+    )
+    provider, _ = e2b_provider(sandbox)
+
+    result = provider.run_case("def solve(): return object()", {}, seconds=2)
+
+    assert result.status == "RUNTIME_ERROR"
+    assert result.verdict_code == "RUNTIME_ERROR"
+    sandbox.kill.assert_called_once_with(request_timeout=3.0)
+
+
+def test_e2b_provider_cleans_up_after_write_failure():
+    sandbox = Mock()
+    sandbox.files.write.side_effect = TimeoutException("request timeout")
+    provider, _ = e2b_provider(sandbox)
+
+    result = provider.run_case("def solve(): return 1", {}, seconds=2)
+
+    assert result.verdict_code == "UNAVAILABLE"
+    assert sandbox.kill.call_count == provider.max_attempts
+    sandbox.kill.assert_called_with(request_timeout=3.0)
 
 
 @pytest.mark.skipif(os.getenv("RUN_REDIS_TESTS") != "1", reason="Requires Redis")
@@ -183,13 +251,3 @@ def test_real_redis_deduplication_and_dequeue(monkeypatch):
         client.close()
 
 
-@pytest.mark.skipif(os.getenv("RUN_DOCKER_TESTS") != "1", reason="Requires Docker")
-def test_real_runtime_and_sampled_memory():
-    outcome = DockerRunner().run_case(
-        "def solve():\n import time\n memory = bytearray(16 * 1024 * 1024)\n time.sleep(3)\n return len(memory)",
-        {},
-    )
-    assert outcome.status == "PASSED"
-    assert outcome.actual == 16 * 1024 * 1024
-    assert outcome.runtime_ms >= 3000
-    assert outcome.memory_bytes is not None and outcome.memory_bytes >= 16 * 1024 * 1024

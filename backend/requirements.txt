@@ -14,3 +14,4 @@ structlog
 SQLAlchemy
 uvicorn[standard]
 httpx
+e2b==2.10.2

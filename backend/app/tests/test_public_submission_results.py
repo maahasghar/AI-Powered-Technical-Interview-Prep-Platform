@@ -8,7 +8,7 @@ from app.api.v1.routers.submissions_router import get_submissions_service, route
 from app.domain.auth.service import AuthService
 from app.domain.submissions.results import CaseResult, InternalJudgeResult
 from app.domain.submissions.schemas import SubmissionResponse, public_result
-from app.judge.docker_runner import evaluate, memory_sample
+from app.judge.worker import evaluate
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -177,14 +177,3 @@ def test_metrics_aggregate_without_returning_actual_outputs():
     assert "actual" not in result.model_dump()
 
 
-@pytest.mark.parametrize(
-    "sample,expected",
-    [
-        ("1.5MiB / 128MiB", 1572864),
-        ("\x1b[2J\x1b[H1.5MiB / 128MiB", 1572864),
-        ("0B / 128MiB", None),
-        ("-- / --", None),
-    ],
-)
-def test_memory_samples(sample, expected):
-    assert memory_sample(sample) == expected

@@ -69,18 +69,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-@app.get("/", status_code=status.HTTP_200_OK)
-def hello_world():
-    return {"message": "Hello, World!"}
-
-
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
 
-@app.get("/readyz")
+@app.get("/ready")
 def readiness():
     try:
         with engine.connect() as connection:
@@ -89,6 +83,11 @@ def readiness():
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Service is not ready") from exc
     return {"status": "ready"}
+
+
+@app.get("/readyz")
+def readiness_alias():
+    return readiness()
 
 
 app.add_middleware(RequestIDMiddleware)

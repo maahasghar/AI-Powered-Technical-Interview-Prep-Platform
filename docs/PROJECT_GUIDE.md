@@ -191,7 +191,7 @@ flowchart TB
         AIWORKER[AI feedback worker]
     end
 
-    SANDBOX[Isolated judge\nJudge0 or hardened containers]
+    SANDBOX[Isolated E2B sandbox]
     LLM[LLM provider]
     EMAIL[Transactional email provider]
     OBS[Logs, Sentry, metrics]
@@ -340,9 +340,9 @@ before investing in optional sophistication.
 
 - **Audience:** coding-practice candidates, live mock-interview candidates, or
   both? Choose one for the MVP.
-- **Judge:** managed Judge0-style service or self-hosted hardened runners? A
-  managed service is faster for an MVP; self-hosting offers control but creates
-  substantial security/operations work.
+- **Judge:** E2B provides the managed isolated execution boundary for the MVP.
+  Keep vendor-specific behavior behind `ExecutionProvider` so another sandbox
+  provider can be introduced without redesigning queueing or persistence.
 - **Languages:** begin with Python only or support several immediately? Python
   only keeps the first vertical slice small.
 - **AI value:** post-submission feedback, conversational interviewer, or adaptive

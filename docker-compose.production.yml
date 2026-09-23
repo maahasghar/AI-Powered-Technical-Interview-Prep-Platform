@@ -34,8 +34,6 @@ services:
       dockerfile: Dockerfile.worker
     env_file: .env.production
     command: ["python", "-m", "app.judge.worker"]
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
 
   feedback-worker:

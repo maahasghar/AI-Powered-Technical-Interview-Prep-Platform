@@ -5,14 +5,31 @@ The production topology has four independently deployable services:
 ```text
 web (Nginx static React app) -> api (FastAPI) -> managed PostgreSQL
                                       |          -> managed Redis
-                                      +-> judge-worker -> isolated judge host
+                                      +-> judge-worker -> E2B sandbox API over HTTPS
                                       +-> feedback-worker -> configured provider
 ```
 
 The API and workers use the same image source but have separate processes and
 scaling/restart policies. PostgreSQL and Redis are external managed services;
 the production Compose file deliberately does not provision local database or
-Redis containers.
+Redis containers. The judge worker is a normal process and does not require a
+Docker socket, Docker daemon, or privileged container access.
+
+On platforms with a worker-service limit, the judge and feedback workers may
+run in one service with `bash start_workers.sh` from the backend image. The
+processes remain independent Redis consumers: `judge:submissions` is consumed
+by the judge worker and `coach:feedback` by the feedback worker. The supervisor
+forwards shutdown signals to both workers and exits nonzero when either exits
+unexpectedly, allowing the platform to restart the combined service.
+
+Configure the combined Railway worker with `DATABASE_URL`, `REDIS_URL`,
+`JWT_SECRET`, and `E2B_API_KEY`. To generate AI feedback, also configure
+`FEEDBACK_AI_ENABLED=true`, `FEEDBACK_EVALUATION_PASSED=true`,
+`FEEDBACK_PROVIDER`, and `FEEDBACK_MODEL`; use `OLLAMA_BASE_URL` for the Ollama
+provider or `OPENAI_API_KEY` for the OpenAI provider. Optional bounded timeout
+and retry controls are `E2B_REQUEST_TIMEOUT_SECONDS`,
+`FEEDBACK_TIMEOUT_SECONDS`, `FEEDBACK_MAX_RETRIES`, and
+`FEEDBACK_RETRY_BACKOFF_SECONDS`.
 
 ## First deployment
 
@@ -20,11 +37,7 @@ Redis containers.
    application role. Provision managed Redis with TLS and a restricted user.
 2. Copy `.env.production.example` to `.env.production` and replace every
    placeholder using the deployment secret manager. Never commit that file.
-3. Build the trusted judge image on the dedicated worker host:
-
-   ```sh
-   docker build -t interview-judge-python:local backend/judge
-   ```
+3. Create an E2B API key and store it as `E2B_API_KEY` in the deployment secret manager. Set `E2B_REQUEST_TIMEOUT_SECONDS=10` unless an approved operational change requires a different bounded value.
 
 4. Apply migrations from a one-off API image before starting traffic:
 
@@ -47,7 +60,8 @@ Redis containers.
 
 `/health` is a process liveness check. `/readyz` checks PostgreSQL and Redis and
 returns `503` until both dependencies respond. The API healthcheck uses
-`/readyz`; the web healthcheck uses `/healthz`.
+`/readyz`; the web healthcheck uses `/healthz`. The judge-worker healthcheck is
+Redis/queue liveness. E2B sandbox requests use bounded API and execution timeouts; infrastructure errors are recorded as unavailable execution results rather than user-code failures.
 
 Workers refresh these Redis keys with a 30-second TTL:
 

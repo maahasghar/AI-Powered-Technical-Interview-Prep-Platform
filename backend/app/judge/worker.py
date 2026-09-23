@@ -1,7 +1,6 @@
 """Run with python -m app.judge.worker. PostgreSQL is the durable job ledger."""
 
 import logging
-import os
 import time
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
@@ -15,7 +14,7 @@ from app.infrastructure.db import SessionLocal
 from app.infrastructure.redis import RedisClient
 from app.infrastructure.submission_queue import SubmissionQueue
 from app.infrastructure.worker_health import heartbeat
-from app.judge.docker_runner import DockerRunner, JudgeUnavailable, evaluate
+from app.judge.execution_provider import E2BExecutionProvider
 from sqlalchemy import update
 
 logger = logging.getLogger(__name__)
@@ -43,6 +42,58 @@ def reconcile(queue, session_factory=SessionLocal):
     for (submission_id,) in ids:
         if not queue.enqueue(submission_id):
             break
+
+
+def evaluate(code, cases, runner):
+    if not cases:
+        return InternalJudgeResult(status="RUNTIME_ERROR", verdict_code="INVALID_TESTS")
+    started = time.monotonic()
+    passed = 0
+    runtime_ms = None
+    memory_bytes = None
+    for case in cases:
+        remaining = 90 - 20 - (time.monotonic() - started)
+        if remaining <= 0:
+            outcome = InternalJudgeResult(
+                status="TIME_LIMIT_EXCEEDED",
+                verdict_code="TIME_LIMIT_EXCEEDED",
+            )
+            return outcome
+        outcome = runner.run_case(code, case["input"], min(6, remaining))
+        if outcome.runtime_ms is not None:
+            runtime_ms = (runtime_ms or 0) + outcome.runtime_ms
+        if outcome.memory_bytes is not None:
+            memory_bytes = max(memory_bytes or 0, outcome.memory_bytes)
+        if outcome.status == "PASSED":
+            if outcome.actual != case["expected"]:
+                return InternalJudgeResult(
+                    status="FAILED",
+                    verdict_code="FAILED",
+                    tests_passed=passed,
+                    tests_total=len(cases),
+                    runtime_ms=runtime_ms,
+                    memory_bytes=memory_bytes,
+                    diagnostics=outcome.diagnostics,
+                )
+            passed += 1
+        else:
+            return InternalJudgeResult(
+                status=outcome.status,
+                verdict_code=outcome.verdict_code or outcome.status,
+                tests_passed=passed,
+                tests_total=len(cases),
+                runtime_ms=runtime_ms,
+                memory_bytes=memory_bytes,
+                diagnostics=outcome.diagnostics,
+            )
+    return InternalJudgeResult(
+        status="PASSED",
+        verdict_code="PASSED",
+        tests_passed=passed,
+        tests_total=len(cases),
+        runtime_ms=runtime_ms,
+        memory_bytes=memory_bytes,
+    )
 
 
 def process_submission(submission_id, runner, session_factory=SessionLocal):
@@ -75,13 +126,10 @@ def process_submission(submission_id, runner, session_factory=SessionLocal):
         else:
             cases = parse_cases(sample_tests) + parse_cases(hidden_tests)
             result = evaluate(code, cases, runner)
-    except JudgeUnavailable:
-        logger.exception("Judge infrastructure failed for submission %s", submission_id)
-        result = InternalJudgeResult(status="RUNTIME_ERROR", verdict_code="UNAVAILABLE")
     except Exception:
         logger.exception("Judging failed for submission %s", submission_id)
         result = InternalJudgeResult(
-            status="RUNTIME_ERROR", verdict_code="INVALID_TESTS"
+            status="RUNTIME_ERROR", verdict_code="UNAVAILABLE"
         )
     if result.diagnostics:
         logger.warning(
@@ -102,7 +150,6 @@ def process_submission(submission_id, runner, session_factory=SessionLocal):
             )
         )
 
-    # Separate transaction: feedback scheduling can never roll back a judge verdict.
     if persisted.rowcount:
         try:
             from app.feedback.service import initial_feedback
@@ -121,13 +168,12 @@ def main():
     logging.basicConfig(level=logging.INFO)
     redis = RedisClient()
     queue = SubmissionQueue(redis.client)
-    runner = DockerRunner(os.getenv("JUDGE_IMAGE", "interview-judge-python:local"))
+    runner = E2BExecutionProvider()
     last_reconcile = 0
     try:
         while True:
             try:
                 if time.monotonic() - last_reconcile > 10:
-                    runner.reap_expired()
                     reconcile(queue)
                     last_reconcile = time.monotonic()
                 heartbeat(redis.client, "judge")

@@ -146,6 +146,74 @@ This allows:
 
 ---
 
+## E2B execution provider
+
+The judge worker uses E2B isolated sandboxes for submitted Python code. The Redis queue, SQLAlchemy submission lifecycle, test evaluation, and feedback pipeline remain independent of the sandbox provider through `ExecutionProvider`.
+
+### Required environment variables
+
+```env
+E2B_API_KEY=
+E2B_REQUEST_TIMEOUT_SECONDS=10
+```
+
+Create `E2B_API_KEY` in the E2B dashboard and store it in the local `.env` or the deployment secret manager. Never log the key. Each test case runs in a fresh sandbox with outbound network access disabled and is terminated after its command completes, fails, or times out.
+
+### Local worker startup
+
+```sh
+cd backend
+python -m app.judge.worker
+```
+
+### Railway startup
+
+```sh
+python -m app.judge.worker
+```
+
+This is a normal worker service; it does not require Docker socket access, a Docker daemon, or privileged mode.
+
+The standalone feedback worker command is:
+
+```sh
+python -m app.feedback.worker
+```
+
+### Combined Railway workers
+
+When Railway resource limits require a single worker service, keep the workers'
+separate Redis queues and start both processes with:
+
+```sh
+bash start_workers.sh
+```
+
+The script starts `python -m app.judge.worker` and `python -m app.feedback.worker`
+as separate child processes. Both write directly to container stdout/stderr. On
+Railway shutdown it forwards `SIGTERM` to both and waits for them; if either
+worker exits unexpectedly, it terminates the other and exits nonzero so Railway
+can restart the service.
+
+The combined service requires:
+
+```env
+DATABASE_URL=
+REDIS_URL=
+JWT_SECRET=
+E2B_API_KEY=
+FEEDBACK_AI_ENABLED=true
+FEEDBACK_EVALUATION_PASSED=true
+FEEDBACK_PROVIDER=ollama
+FEEDBACK_MODEL=
+OLLAMA_BASE_URL=
+```
+
+For `FEEDBACK_PROVIDER=openai`, set `OPENAI_API_KEY` instead of
+`OLLAMA_BASE_URL`. `E2B_REQUEST_TIMEOUT_SECONDS`, `FEEDBACK_TIMEOUT_SECONDS`,
+`FEEDBACK_MAX_RETRIES`, and `FEEDBACK_RETRY_BACKOFF_SECONDS` are optional
+bounded-timeout and retry tuning variables with safe defaults.
+
 ## Docker & Docker Compose
 
 ### Purpose

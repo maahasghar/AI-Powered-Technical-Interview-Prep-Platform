@@ -117,20 +117,16 @@ def test_old_worker_cannot_overwrite_reclaimed_submission(
     assert row.status == "FAILED"
 
 
-def test_api_to_redis_to_docker_to_result(
+def test_api_to_redis_to_e2b_provider_to_result(
     client, user_factory, problem_factory, db_session, monkeypatch
 ):
-    import os
     from uuid import uuid4
 
-    import pytest
     import redis
     from app.core.config import settings
     from app.infrastructure import submission_queue
-    from app.judge.docker_runner import DockerRunner
+    from app.judge.execution_provider import E2BExecutionProvider
 
-    if os.getenv("RUN_DOCKER_TESTS") != "1" or os.getenv("RUN_REDIS_TESTS") != "1":
-        pytest.skip("Requires Docker and Redis")
     redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
     key = f"judge-test:{uuid4().hex}"
     monkeypatch.setattr(submission_queue, "QUEUE_KEY", key)
@@ -151,8 +147,19 @@ def test_api_to_redis_to_docker_to_result(
         assert created.json()["status"] == "QUEUED"
         submission_id = queue.take()
         assert submission_id == created.json()["id"]
+        sandbox = Mock()
+        sandbox.commands.run.side_effect = [
+            Mock(stdout="2", stderr="", exit_code=0, error=None),
+            Mock(stdout="5", stderr="", exit_code=0, error=None),
+        ]
+        sandbox_factory = Mock()
+        sandbox_factory.create.return_value = sandbox
         process_submission(
-            submission_id, DockerRunner(), sessionmaker(bind=db_session.get_bind())
+            submission_id,
+            E2BExecutionProvider(
+                api_key="test-key", sandbox_factory=sandbox_factory
+            ),
+            sessionmaker(bind=db_session.get_bind()),
         )
         db_session.expire_all()
         result = client.get(
@@ -162,6 +169,8 @@ def test_api_to_redis_to_docker_to_result(
         assert result["result"]["tests_passed"] == 2
         assert result["result"]["tests_total"] == 2
         assert result["result"]["runtime_ms"] > 0
+        assert sandbox_factory.create.call_count == 2
+        assert sandbox.kill.call_count == 2
     finally:
         redis_client.delete(key)
         redis_client.close()
