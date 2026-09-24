@@ -26,7 +26,6 @@ jobs:
           - 6379:6379
 
     env:
-      RUN_DOCKER_TESTS: "1"
       RUN_REDIS_TESTS: "1"
       DATABASE_URL: postgresql://app:app@localhost:5432/app_test
       REDIS_URL: redis://localhost:6379/0
@@ -62,18 +61,37 @@ jobs:
       - run: black --check backend
       - run: isort --check-only backend
 
-      - name: Build isolated Python judge
-        run: docker build -t interview-judge-python:local backend/judge
-
       - run: pytest backend/app/tests
 
       - name: Build Docker image
         run: docker build -t backend ./backend
 
-      - name: Build worker and verify judge access
+      - name: Build worker and smoke-test E2B integration
         run: |
           docker build -f backend/Dockerfile.worker -t interview-judge-worker:test backend
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock --entrypoint python interview-judge-worker:test -c 'from app.judge.docker_runner import DockerRunner; assert DockerRunner().run_case("def solve(): return 1", {}).actual == 1'
+          docker run --rm -i --network none \
+            -e DATABASE_URL -e REDIS_URL -e JWT_SECRET \
+            --entrypoint python interview-judge-worker:test - <<'PY'
+          from types import SimpleNamespace
+          from unittest.mock import Mock
+          from app.judge.execution_provider import E2BExecutionProvider
+          from app.judge.worker import evaluate
+
+          # Check the packaged provider and worker without paid sandbox requests.
+          sandbox = Mock()
+          sandbox.commands.run.return_value = SimpleNamespace(
+              stdout="1", stderr="", exit_code=0, error=None
+          )
+          factory = Mock()
+          factory.create.return_value = sandbox
+          provider = E2BExecutionProvider(api_key="ci-test-key", sandbox_factory=factory)
+          result = evaluate("def solve(): return 1", [{"input": {}, "expected": 1}], provider)
+          assert result.status == "PASSED", result
+          assert result.tests_passed == 1, result
+          factory.create.assert_called_once()
+          sandbox.commands.run.assert_called_once()
+          sandbox.kill.assert_called_once()
+          PY
 
       - name: Run pre-commit
         run: |
@@ -116,4 +134,3 @@ jobs:
       - name: Build frontend
         working-directory: frontend
         run: npm run build
-
