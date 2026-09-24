@@ -1,13 +1,20 @@
-import smtplib
-import ssl
-from email.message import EmailMessage
+import logging
+
+import httpx
 
 from app.core.config import settings
 
 
+logger = logging.getLogger(__name__)
+
+
+class EmailDeliveryError(RuntimeError):
+    """Email could not be accepted by the delivery provider."""
+
+
 class EmailClient:
     def send_verification_email(self, email: str, token: str):
-        link = f"{settings.FRONTEND_URL}/verify-email?token={token}"
+        link = f"{settings.FRONTEND_URL.rstrip('/')}/verify-email?token={token}"
         self.send_email(
             to=email,
             subject="Verify your email",
@@ -15,7 +22,7 @@ class EmailClient:
         )
 
     def send_password_reset_email(self, email: str, token: str):
-        link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+        link = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={token}"
         self.send_email(
             to=email,
             subject="Reset your password",
@@ -24,22 +31,31 @@ class EmailClient:
 
     def send_email(self, to: str, subject: str, body: str):
         if settings.EMAIL_DELIVERY_MODE == "console":
-            print(f"Email queued for {to}: {subject}")
+            logger.info("Email delivery skipped (console mode): %s", subject)
             return
 
-        if settings.EMAIL_DELIVERY_MODE != "smtp" or not settings.SMTP_HOST:
-            raise RuntimeError("Email delivery is not configured")
+        api_key = settings.RESEND_API_KEY.get_secret_value().strip()
+        if settings.EMAIL_DELIVERY_MODE != "resend" or not api_key:
+            logger.error("Set EMAIL_DELIVERY_MODE=resend and RESEND_API_KEY")
+            raise EmailDeliveryError("Email delivery is not configured")
 
-        message = EmailMessage()
-        message["From"] = settings.EMAIL_FROM
-        message["To"] = to
-        message["Subject"] = subject
-        message.set_content(body)
+        try:
+            response = httpx.post(
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json={
+                    "from": settings.EMAIL_FROM,
+                    "to": [to],
+                    "subject": subject,
+                    "text": body,
+                },
+                timeout=settings.EMAIL_TIMEOUT_SECONDS,
+            )
+        except httpx.RequestError:
+            logger.error("Resend email request failed or timed out")
+            raise EmailDeliveryError("Email provider is unavailable") from None
 
-        context = ssl.create_default_context()
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as smtp:
-            if settings.SMTP_USE_TLS:
-                smtp.starttls(context=context)
-            if settings.SMTP_USERNAME:
-                smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
-            smtp.send_message(message)
+        if not response.is_success:
+            # Provider bodies may contain recipient details; log only the status.
+            logger.error("Resend rejected email (HTTP %s)", response.status_code)
+            raise EmailDeliveryError("Email provider rejected the request")

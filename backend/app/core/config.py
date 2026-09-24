@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings
 
 
@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:3000"
     FRONTEND_URL: str = "http://localhost:3000"
     EMAIL_DELIVERY_MODE: str = "console"
+    RESEND_API_KEY: SecretStr = SecretStr("")
+    EMAIL_TIMEOUT_SECONDS: float = Field(default=10.0, gt=0, le=60)
+    # Accepted for old .env files only; SMTP delivery has been removed.
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
     SMTP_USERNAME: str = ""

@@ -15,7 +15,8 @@ from app.domain.auth.exceptions import (
     Unauthorized,
 )
 from app.infrastructure.db import engine
-from fastapi import FastAPI, HTTPException, status
+from app.infrastructure.email_client import EmailDeliveryError
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
@@ -43,6 +44,16 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
+@app.exception_handler(EmailDeliveryError)
+def email_delivery_error_handler(request, exc):
+    return JSONResponse(
+        status_code=503,
+        content={
+            "detail": "Email delivery is temporarily unavailable. Please try again later."
+        },
+    )
+
+
 @app.exception_handler(InvalidCredentials)
 def invalid_credentials_handler(request, exc):
     return JSONResponse(status_code=401, content={"detail": "Invalid credentials"})
@@ -68,6 +79,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.get("/health")
 def health():

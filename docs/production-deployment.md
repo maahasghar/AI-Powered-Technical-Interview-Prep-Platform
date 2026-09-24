@@ -56,6 +56,40 @@ and retry controls are `E2B_REQUEST_TIMEOUT_SECONDS`,
    problem reads, a test submission, and feedback polling before production
    traffic is enabled.
 
+## Email delivery with Resend
+
+Verification and password-reset messages use the
+[Resend HTTPS API](https://resend.com/docs/api-reference/emails/send-email).
+On the Railway **backend** service, configure:
+
+```env
+EMAIL_DELIVERY_MODE=resend
+RESEND_API_KEY=re_your_api_key
+EMAIL_FROM=Interview Prep <no-reply@your-verified-domain.com>
+EMAIL_TIMEOUT_SECONDS=10
+FRONTEND_URL=https://frontend-production-ef78.up.railway.app
+```
+
+Create an API key with sending permission and verify your sending domain in
+Resend. Replace `EMAIL_FROM` with an address on that domain. Resend's
+`onboarding@resend.dev` test sender only sends to your own account email;
+[verify a domain to send to other users](https://resend.com/docs/knowledge-base/403-error-resend-dev-domain).
+Keep the API key in backend secrets, never frontend variables. Deploy the updated
+backend after saving the variables. SMTP variables are no longer used and can be
+removed. HTTPS delivery does not require Railway's outbound SMTP support.
+
+Local development defaults to `EMAIL_DELIVERY_MODE=console`, which logs that
+delivery was skipped and does not send a message or expose verification tokens.
+Use `resend` mode to test actual delivery. Verify registration and password-reset
+messages using an inbox you control, and check delivery status in Resend.
+Provider failures return HTTP 503 with a safe message; backend logs contain the
+provider HTTP status without the API key or email contents. Check the API key,
+verified sender, and provider limits if Resend rejects a request. Requests have
+a configurable timeout and are not automatically retried.
+Registration currently saves the account before sending email. If delivery fails
+and registering again reports that the email is already registered, fix delivery
+and use the frontend's resend-verification page for that account.
+
 ## Readiness and worker liveness
 
 `/health` is a process liveness check. `/readyz` checks PostgreSQL and Redis and
