@@ -128,9 +128,7 @@ def process_submission(submission_id, runner, session_factory=SessionLocal):
             result = evaluate(code, cases, runner)
     except Exception:
         logger.exception("Judging failed for submission %s", submission_id)
-        result = InternalJudgeResult(
-            status="RUNTIME_ERROR", verdict_code="UNAVAILABLE"
-        )
+        result = InternalJudgeResult(status="RUNTIME_ERROR", verdict_code="UNAVAILABLE")
     if result.diagnostics:
         logger.warning(
             "Submission %s diagnostics: %r", submission_id, result.diagnostics

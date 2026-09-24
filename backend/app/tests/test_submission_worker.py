@@ -156,9 +156,7 @@ def test_api_to_redis_to_e2b_provider_to_result(
         sandbox_factory.create.return_value = sandbox
         process_submission(
             submission_id,
-            E2BExecutionProvider(
-                api_key="test-key", sandbox_factory=sandbox_factory
-            ),
+            E2BExecutionProvider(api_key="test-key", sandbox_factory=sandbox_factory),
             sessionmaker(bind=db_session.get_bind()),
         )
         db_session.expire_all()

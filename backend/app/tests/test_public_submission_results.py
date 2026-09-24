@@ -175,5 +175,3 @@ def test_metrics_aggregate_without_returning_actual_outputs():
     assert result.memory_bytes == 2000
     assert result.tests_passed == 2
     assert "actual" not in result.model_dump()
-
-

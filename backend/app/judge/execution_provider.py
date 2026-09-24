@@ -8,22 +8,19 @@ from dataclasses import dataclass, field
 from math import ceil
 from typing import Any, Protocol
 
-from e2b import CommandExitException, Sandbox, SandboxException, TimeoutException
-from e2b.exceptions import AuthenticationException, RateLimitException
-
 from app.core.config import settings
 from app.domain.submissions.results import CaseResult
+from e2b import CommandExitException, Sandbox, SandboxException, TimeoutException
+from e2b.exceptions import AuthenticationException, RateLimitException
 
 logger = logging.getLogger(__name__)
 OUTPUT_LIMIT = 64 * 1024
 
 
 class ExecutionProvider(Protocol):
-    def execute(self, code: str, arguments: dict[str, Any], seconds: float = 6.0):
-        ...
+    def execute(self, code: str, arguments: dict[str, Any], seconds: float = 6.0): ...
 
-    def run_case(self, code: str, arguments: dict[str, Any], seconds: float = 6.0):
-        ...
+    def run_case(self, code: str, arguments: dict[str, Any], seconds: float = 6.0): ...
 
 
 @dataclass
@@ -209,12 +206,16 @@ print(json.dumps(result, allow_nan=False, separators=(',', ':')))
                 status="RUNTIME_ERROR",
                 verdict_code="RUNTIME_ERROR",
                 runtime_ms=runtime_ms,
-                diagnostics=result.diagnostics or result.stderr or "Sandboxed code failed",
+                diagnostics=result.diagnostics
+                or result.stderr
+                or "Sandboxed code failed",
             )
         if result.stdout is None or len(result.stdout.encode()) > OUTPUT_LIMIT:
             return CaseResult(
                 status="RUNTIME_ERROR",
-                verdict_code="OUTPUT_LIMIT" if result.stdout is not None else "RUNTIME_ERROR",
+                verdict_code=(
+                    "OUTPUT_LIMIT" if result.stdout is not None else "RUNTIME_ERROR"
+                ),
                 runtime_ms=runtime_ms,
                 diagnostics=result.diagnostics or "Sandbox output was invalid",
             )

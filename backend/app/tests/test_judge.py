@@ -249,5 +249,3 @@ def test_real_redis_deduplication_and_dequeue(monkeypatch):
     finally:
         client.delete(key)
         client.close()
-
-
