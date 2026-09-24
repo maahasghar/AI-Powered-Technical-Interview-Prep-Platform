@@ -62,6 +62,8 @@ jobs:
       - run: isort --check-only backend
 
       - run: pytest backend/app/tests
+      - name: Test combined worker supervision
+        run: PYTHONPATH=backend python -m unittest discover -s backend/tests -v
 
       - name: Build Docker image
         run: docker build -t backend ./backend
@@ -91,6 +93,18 @@ jobs:
           factory.create.assert_called_once()
           sandbox.commands.run.assert_called_once()
           sandbox.kill.assert_called_once()
+
+          # Verify Ollama's binary and runtime libraries in the final image.
+          # No model download or external network access is needed.
+          import os
+          from app.scripts.run_workers import Supervisor
+          supervisor = Supervisor()
+          os.environ["OLLAMA_HOST"] = "127.0.0.1:11434"
+          try:
+              supervisor.start("Ollama smoke test", ["ollama", "serve"])
+              assert isinstance(supervisor.wait_for_ollama(30), list)
+          finally:
+              supervisor.shutdown()
           PY
 
       - name: Run pre-commit

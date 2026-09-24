@@ -180,22 +180,16 @@ The standalone feedback worker command is:
 python -m app.feedback.worker
 ```
 
-### Combined Railway workers
+### Combined Railway workers and Ollama
 
-When Railway resource limits require a single worker service, keep the workers'
-separate Redis queues and start both processes with:
+Build `backend/Dockerfile.worker` with `backend` as the build context. Its default
+command, `bash /app/start_workers.sh`, starts Ollama, waits for its API, downloads
+`FEEDBACK_MODEL` if missing, then starts the judge and feedback workers. The
+workers retain separate Redis queues. All three processes write to deployment
+logs; a process exit stops the service so Railway can restart it. SIGTERM is
+forwarded to all process groups, with forced cleanup after a 10-second grace period.
 
-```sh
-bash start_workers.sh
-```
-
-The script starts `python -m app.judge.worker` and `python -m app.feedback.worker`
-as separate child processes. Both write directly to container stdout/stderr. On
-Railway shutdown it forwards `SIGTERM` to both and waits for them; if either
-worker exits unexpectedly, it terminates the other and exits nonzero so Railway
-can restart the service.
-
-The combined service requires:
+Set the combined service's variables:
 
 ```env
 DATABASE_URL=
@@ -205,14 +199,27 @@ E2B_API_KEY=
 FEEDBACK_AI_ENABLED=true
 FEEDBACK_EVALUATION_PASSED=true
 FEEDBACK_PROVIDER=ollama
-FEEDBACK_MODEL=
-OLLAMA_BASE_URL=
+FEEDBACK_MODEL=<your-evaluated-Ollama-model-name>
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_MODELS=/data/ollama
 ```
 
-For `FEEDBACK_PROVIDER=openai`, set `OPENAI_API_KEY` instead of
-`OLLAMA_BASE_URL`. `E2B_REQUEST_TIMEOUT_SECONDS`, `FEEDBACK_TIMEOUT_SECONDS`,
-`FEEDBACK_MAX_RETRIES`, and `FEEDBACK_RETRY_BACKOFF_SECONDS` are optional
-bounded-timeout and retry tuning variables with safe defaults.
+Mount a persistent Railway volume at `/data` to retain downloaded models. The
+supervisor sets `OLLAMA_HOST=127.0.0.1:11434` and
+`OLLAMA_BASE_URL=http://127.0.0.1:11434` for its children, overriding stale external
+hostnames. Ollama is internal to this container and needs no public domain.
+The AI enablement/evaluation flags retain their existing meaning; enabling this
+container does not bypass those checks.
+
+Optional startup limits are `OLLAMA_STARTUP_TIMEOUT_SECONDS=60` and
+`OLLAMA_PULL_TIMEOUT_SECONDS=900`. The first deployment can take longer while the
+model downloads. Choose a model that fits the service's memory and CPU capacity.
+See [Railway setup and verification](docs/production-deployment.md#combined-workers-with-ollama-on-railway).
+
+The standalone judge command remains `python -m app.judge.worker`. Local Compose
+explicitly uses that command and keeps its separate Ollama and feedback services.
+For an external AI provider, run the standalone workers using the normal backend
+image rather than the combined Ollama startup command.
 
 ## Docker & Docker Compose
 

@@ -24,6 +24,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.worker
+    command: ["python", "-m", "app.judge.worker"]
     env_file: .env
     environment:
       DATABASE_URL: postgresql://app:app@postgres:5432/app

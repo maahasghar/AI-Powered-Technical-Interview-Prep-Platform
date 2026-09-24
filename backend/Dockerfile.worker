@@ -1,7 +1,18 @@
+ARG OLLAMA_IMAGE=ollama/ollama:latest
+FROM ${OLLAMA_IMAGE} AS ollama
+
 FROM python:3.11-slim
+COPY --from=ollama /bin/ollama /usr/bin/ollama
+COPY --from=ollama /usr/lib/ollama /usr/lib/ollama
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libgomp1 libvulkan1 libopenblas0 \
+    && rm -rf /var/lib/apt/lists/*
+ENV PYTHONUNBUFFERED=1 \
+    OLLAMA_MODELS=/data/ollama \
+    OLLAMA_BASE_URL=http://127.0.0.1:11434 \
+    FEEDBACK_PROVIDER=ollama
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 RUN chmod +x /app/start_workers.sh
-CMD ["python", "-m", "app.judge.worker"]
+CMD ["bash", "/app/start_workers.sh"]
