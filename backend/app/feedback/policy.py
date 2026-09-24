@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import ast
 import json
+import re
 from typing import Literal
 
 from app.domain.submissions.results import InternalJudgeResult
 from app.domain.submissions.schemas import public_result
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 CATEGORIES = {
     "arrays": "arrays and sequences",
@@ -56,8 +58,33 @@ class StructuredFeedback(BaseModel):
     next_step: str = Field(min_length=1, max_length=2000)
 
 
+class SolutionFeedback(StructuredFeedback):
+    solution_code: str = Field(
+        min_length=1,
+        max_length=16000,
+        description="Complete Python source defining solve, without Markdown fences. Required even when the submitted code passed.",
+    )
+
+    @field_validator("solution_code")
+    @classmethod
+    def require_python_solution(cls, value):
+        value = value.strip()
+        try:
+            tree = ast.parse(value)
+        except (SyntaxError, ValueError, RecursionError) as exc:
+            raise ValueError("Solution must contain valid Python source") from exc
+        if not any(
+            isinstance(node, ast.FunctionDef) and node.name == "solve"
+            for node in tree.body
+        ):
+            raise ValueError("Solution must define the solve function")
+        return value
+
+
 OUTPUT_MODELS = {
-    stage: StructuredFeedback for stage in ("DIAGNOSIS", "HINT", "SOLUTION")
+    "DIAGNOSIS": StructuredFeedback,
+    "HINT": StructuredFeedback,
+    "SOLUTION": SolutionFeedback,
 }
 
 
@@ -112,6 +139,20 @@ def deterministic_feedback(stage, context: FeedbackContext):
 
 
 def validate_feedback(stage, payload):
+    if stage == "SOLUTION":
+        data = json.loads(payload)
+        # Keep previously saved fenced solutions readable without a DB migration.
+        if isinstance(data, dict) and "solution_code" not in data:
+            match = re.search(
+                r"```(?:python)?\s*\n([\s\S]*?)```", data.get("next_step") or ""
+            )
+            if match:
+                data["solution_code"] = match.group(1).strip()
+                data["next_step"] = (
+                    data["next_step"][: match.start()]
+                    + data["next_step"][match.end() :]
+                ).strip() or "Review the suggested implementation."
+        return SolutionFeedback.model_validate(data)
     return OUTPUT_MODELS[stage].model_validate_json(payload)
 
 

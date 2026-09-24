@@ -23,7 +23,7 @@ respond only in your own words using the schema fields below:
 STAGES = {
     "DIAGNOSIS": "First feedback: diagnose the broad problem category and describe strengths. Do not provide an algorithm, steps, code, or solution; set hint to null.",
     "HINT": "Second hint: point toward one high-level approach. Do not provide code, pseudocode, a worked example, or a full solution.",
-    "SOLUTION": "The candidate explicitly selected Show solution. In next_step, give a complete working solution as a fenced code block (```python ... ```) followed by a brief explanation, and state its complexity. This is coaching, not a new verdict. Do not claim that code has been executed or tested.",
+    "SOLUTION": "The candidate explicitly selected Show solution. You MUST populate solution_code with a complete Python implementation defining solve, without Markdown fences. Include the implementation even if their submission passed; review text alone is not a solution. Put a brief explanation in next_step, and assess this solution's complexity. Do not claim that code has been executed or tested.",
 }
 
 

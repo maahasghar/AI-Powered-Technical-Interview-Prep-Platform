@@ -110,11 +110,10 @@ def evaluate_output(case: EvaluationCase, payload: str) -> list[str]:
     if case.stage == "HINT" and "```" in serialized:
         errors.append("hint must not contain a code block")
     if case.stage == "SOLUTION":
-        solution = feedback.next_step.lower()
-        if "```python" not in solution:
-            errors.append("solution must contain a fenced Python code block")
-        if feedback.next_step.rstrip().endswith("```"):
-            errors.append("solution must include explanation after the code block")
+        if not feedback.solution_code.strip():
+            errors.append("solution must contain Python code")
+        if not feedback.next_step.strip():
+            errors.append("solution must include an explanation")
     return errors
 
 

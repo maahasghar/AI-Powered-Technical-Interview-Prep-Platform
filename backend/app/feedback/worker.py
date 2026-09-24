@@ -225,7 +225,11 @@ def process_feedback(feedback_id, provider, session_factory=SessionLocal):
                     if attempt + 1 < attempts:
                         time.sleep(_retry_delay(exc, attempt))
             if payload is None:
-                payload = deterministic_feedback(stage, context).model_dump_json()
+                if stage == "SOLUTION":
+                    # Review text cannot substitute for the requested implementation.
+                    status = "FAILED"
+                else:
+                    payload = deterministic_feedback(stage, context).model_dump_json()
         else:
             status = "FAILED"
     with session_factory.begin() as session:

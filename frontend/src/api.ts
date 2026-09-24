@@ -21,6 +21,7 @@ export interface FeedbackItem {
   error: string | null;
 }
 export interface StructuredFeedback {
+  solution_code?: string;
   strengths: string[];
   likely_issue: string | null;
   hint: string | null;

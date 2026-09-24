@@ -79,6 +79,7 @@ export default function FeedbackPanel({ submissionId }) {
         {item.feedback.hint && <p><strong>Hint:</strong> {item.feedback.hint}</p>}
         {stage === "SOLUTION"
           ? <>
+              {item.feedback.solution_code && <pre className="code-block"><code>{item.feedback.solution_code}</code></pre>}
               {renderWithCodeBlocks(item.feedback.next_step)}
               <p><strong>Complexity:</strong> {item.feedback.complexity.time} time, {item.feedback.complexity.space} space</p>
             </>

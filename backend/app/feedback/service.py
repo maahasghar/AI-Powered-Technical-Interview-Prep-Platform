@@ -6,7 +6,12 @@ from typing import Literal
 from app.core.config import settings
 from app.domain.submissions.models import Submission
 from app.feedback.models import Feedback
-from app.feedback.policy import StructuredFeedback, judge_ready, validate_feedback
+from app.feedback.policy import (
+    SolutionFeedback,
+    StructuredFeedback,
+    judge_ready,
+    validate_feedback,
+)
 from fastapi import HTTPException
 from pydantic import BaseModel
 from sqlalchemy import func
@@ -24,7 +29,7 @@ class FeedbackResponse(BaseModel):
     id: int
     stage: Literal["DIAGNOSIS", "HINT", "SOLUTION"]
     status: Literal["QUEUED", "RUNNING", "READY", "FAILED"]
-    feedback: StructuredFeedback | None = None
+    feedback: SolutionFeedback | StructuredFeedback | None = None
     error: str | None = None
     provider: str | None = None
     model: str | None = None
@@ -58,7 +63,11 @@ def public_feedback(row):
         status=status,
         feedback=feedback,
         error=(
-            "Coaching is unavailable. You can retry without changing your judge result."
+            (
+                "A code solution could not be generated. Retry show solution."
+                if row.stage == "SOLUTION"
+                else "Coaching is unavailable. You can retry without changing your judge result."
+            )
             if status == "FAILED"
             else None
         ),
@@ -117,6 +126,13 @@ def request_feedback(session, submission_id, user_id, action):
         .filter_by(submission_id=submission.id, stage=stage)
         .first()
     )
+    if (
+        row is not None
+        and row.status == "READY"
+        and public_feedback(row).status == "FAILED"
+    ):
+        # Allow an explicit retry of old text-only solutions and malformed records.
+        row.status = "FAILED"
     if row is None:
         recent = (
             session.query(func.count(Feedback.id))

@@ -95,6 +95,20 @@ metrics during a request; increase the constrained resource if usage reaches the
 service limit. Verify with a new submission because existing fallback feedback
 is saved and will not regenerate on refresh.
 
+### Deploying the solution code response
+
+Deploy the API, feedback worker, and frontend together for feedback schema v2.
+Show solution now requires `solution_code` containing Python source with a `solve`
+function; `next_step` contains the explanation. The frontend renders the code
+directly in a code block. Syntax checking does not execute or prove the code correct.
+If prompt/schema version variables are overridden, update them to
+`FEEDBACK_PROMPT_VERSION=2026-09-24-v2` and `FEEDBACK_SCHEMA_VERSION=2`.
+
+Previously saved fenced solutions remain readable. Old text-only solution records
+are shown as unavailable and can be regenerated with **Retry show solution**.
+New solution generation failures remain retryable instead of saving generic review
+text as a completed solution. Diagnosis and hint fallback behavior is unchanged.
+
 ## First deployment
 
 1. Provision managed PostgreSQL with TLS, automated backups, and a restricted
