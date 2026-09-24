@@ -178,7 +178,11 @@ class OllamaFeedbackProvider:
             ],
             "format": model.model_json_schema(),
             "stream": False,
-            "options": {"temperature": 0.2},
+            "options": {
+                "temperature": 0.2,
+                "num_thread": settings.OLLAMA_NUM_THREAD,
+                "num_predict": settings.OLLAMA_NUM_PREDICT,
+            },
         }
         started = time.monotonic()
         with httpx.Client(

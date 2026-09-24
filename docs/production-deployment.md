@@ -66,6 +66,35 @@ The existing production Compose setup still runs standalone workers. Local
 Compose retains its separate Ollama container. To use an external provider, run
 the standalone worker commands in the normal backend image.
 
+### Slow CPU inference and feedback timeouts
+
+If the logs show `ReadTimeout` after 120 seconds while Ollama remains running,
+deploy the updated feedback worker and try these variables on the worker service:
+
+```env
+FEEDBACK_TIMEOUT_SECONDS=600
+FEEDBACK_MAX_RETRIES=0
+OLLAMA_NUM_THREAD=1
+OLLAMA_NUM_PREDICT=1024
+```
+
+The timeout default remains 120 seconds; 600 gives CPU inference more time to
+finish. Disabling automatic retries avoids immediately repeating a slow request.
+The Ollama request explicitly sets CPU threads (default 1) and maximum output
+tokens (default 1024). Tune thread count to the CPU actually allocated to this
+container. The token cap bounds generation; an incomplete JSON response still
+fails validation and falls back rather than being shown as a complete solution.
+
+Active feedback jobs now renew their database timestamp every 30 seconds during
+inference and retry waits. The three-minute recovery threshold applies to jobs
+whose heartbeat stopped, so another worker won't reclaim a healthy long request.
+Deploy this change to every feedback worker before increasing timeouts.
+
+These settings do not guarantee enough CPU or memory for the model. Check service
+metrics during a request; increase the constrained resource if usage reaches the
+service limit. Verify with a new submission because existing fallback feedback
+is saved and will not regenerate on refresh.
+
 ## First deployment
 
 1. Provision managed PostgreSQL with TLS, automated backups, and a restricted

@@ -1,7 +1,9 @@
 """Independent coaching worker; never updates submission verdicts or judge results."""
 
 import logging
+import threading
 import time
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -26,6 +28,44 @@ from app.infrastructure.worker_health import heartbeat
 from sqlalchemy import exists, update
 
 logger = logging.getLogger(__name__)
+
+
+def _renew_feedback_claim(feedback_id, token, session_factory):
+    with session_factory.begin() as session:
+        result = session.execute(
+            update(Feedback)
+            .where(
+                Feedback.id == feedback_id,
+                Feedback.status == "RUNNING",
+                Feedback.execution_id == token,
+            )
+            .values(updated_at=datetime.now(timezone.utc))
+        )
+        return bool(result.rowcount)
+
+
+@contextmanager
+def _keep_feedback_alive(feedback_id, token, session_factory, interval=30):
+    """Renew ownership during blocking inference and backoff, without sharing sessions."""
+    stop = threading.Event()
+
+    def renew():
+        while not stop.wait(interval):
+            try:
+                if not _renew_feedback_claim(feedback_id, token, session_factory):
+                    return
+            except Exception as exc:  # noqa: BLE001 - retry on the next heartbeat
+                logger.warning(
+                    "Feedback %s heartbeat failed (%s)", feedback_id, type(exc).__name__
+                )
+
+    thread = threading.Thread(target=renew, name="feedback-lease", daemon=True)
+    thread.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        thread.join(timeout=5)
 
 
 def _retry_delay(exc: Exception, attempt: int) -> float:
@@ -153,40 +193,41 @@ def process_feedback(feedback_id, provider, session_factory=SessionLocal):
         "generated_at": datetime.now(timezone.utc),
     }
     attempts = settings.FEEDBACK_MAX_RETRIES + 1
-    if context is not None:
-        for attempt in range(attempts):
-            try:
-                candidate = provider.generate(stage, context)
-                payload = validate_feedback(stage, candidate).model_dump_json()
-                provider_metadata = getattr(provider, "last_metadata", {})
-                if isinstance(provider_metadata, dict):
-                    metadata.update(provider_metadata)
-                metadata.update(
-                    source="ai",
-                    prompt_version=settings.FEEDBACK_PROMPT_VERSION,
-                    schema_version=settings.FEEDBACK_SCHEMA_VERSION,
-                    attempts=attempt + 1,
-                    generated_at=datetime.now(timezone.utc),
-                )
-                break
-            except Exception as exc:  # noqa: BLE001 - isolate AI failures
-                # Do not log request bodies, source code, keys, or provider responses.
-                logger.warning(
-                    "Feedback %s attempt %s failed (%s)",
-                    feedback_id,
-                    attempt + 1,
-                    type(exc).__name__,
-                )
-                metadata["error_type"] = type(exc).__name__
-                metadata["attempts"] = attempt + 1
-                if not _is_transient(exc):
+    with _keep_feedback_alive(feedback_id, token, session_factory):
+        if context is not None:
+            for attempt in range(attempts):
+                try:
+                    candidate = provider.generate(stage, context)
+                    payload = validate_feedback(stage, candidate).model_dump_json()
+                    provider_metadata = getattr(provider, "last_metadata", {})
+                    if isinstance(provider_metadata, dict):
+                        metadata.update(provider_metadata)
+                    metadata.update(
+                        source="ai",
+                        prompt_version=settings.FEEDBACK_PROMPT_VERSION,
+                        schema_version=settings.FEEDBACK_SCHEMA_VERSION,
+                        attempts=attempt + 1,
+                        generated_at=datetime.now(timezone.utc),
+                    )
                     break
-                if attempt + 1 < attempts:
-                    time.sleep(_retry_delay(exc, attempt))
-        if payload is None:
-            payload = deterministic_feedback(stage, context).model_dump_json()
-    else:
-        status = "FAILED"
+                except Exception as exc:  # noqa: BLE001 - isolate AI failures
+                    # Do not log request bodies, source code, keys, or provider responses.
+                    logger.warning(
+                        "Feedback %s attempt %s failed (%s)",
+                        feedback_id,
+                        attempt + 1,
+                        type(exc).__name__,
+                    )
+                    metadata["error_type"] = type(exc).__name__
+                    metadata["attempts"] = attempt + 1
+                    if not _is_transient(exc):
+                        break
+                    if attempt + 1 < attempts:
+                        time.sleep(_retry_delay(exc, attempt))
+            if payload is None:
+                payload = deterministic_feedback(stage, context).model_dump_json()
+        else:
+            status = "FAILED"
     with session_factory.begin() as session:
         session.execute(
             update(Feedback)

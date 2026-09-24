@@ -15,9 +15,11 @@ class Settings(BaseSettings):
     FEEDBACK_AI_ENABLED: bool = False
     FEEDBACK_EVALUATION_PASSED: bool = False
     OLLAMA_BASE_URL: str = "http://ollama:11434"
+    OLLAMA_NUM_THREAD: int = Field(default=1, ge=1)
+    OLLAMA_NUM_PREDICT: int = Field(default=1024, ge=1)
     FEEDBACK_PROMPT_VERSION: str = "2026-09-18-v1"
     FEEDBACK_SCHEMA_VERSION: str = "1"
-    FEEDBACK_TIMEOUT_SECONDS: float = 120.0
+    FEEDBACK_TIMEOUT_SECONDS: float = Field(default=120.0, gt=0, le=1800)
     FEEDBACK_MAX_RETRIES: int = 1
     FEEDBACK_RETRY_BACKOFF_SECONDS: float = 2.0
     FEEDBACK_RATE_LIMIT: int = 10
