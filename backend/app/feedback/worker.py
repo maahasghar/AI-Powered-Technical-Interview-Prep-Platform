@@ -25,9 +25,36 @@ from app.infrastructure.db import SessionLocal
 from app.infrastructure.redis import RedisClient
 from app.infrastructure.submission_queue import SubmissionQueue
 from app.infrastructure.worker_health import heartbeat
+from pydantic import ValidationError
 from sqlalchemy import exists, update
 
 logger = logging.getLogger(__name__)
+
+
+def _validation_details(exc):
+    """Report schema failures without exposing generated content or extra keys."""
+    allowed_fields = {
+        "strengths",
+        "likely_issue",
+        "hint",
+        "complexity",
+        "time",
+        "space",
+        "next_step",
+        "solution_code",
+    }
+    return [
+        {
+            "type": error["type"],
+            "loc": [
+                part if isinstance(part, int) or part in allowed_fields else "<extra>"
+                for part in error["loc"]
+            ],
+        }
+        for error in exc.errors(
+            include_input=False, include_context=False, include_url=False
+        )[:10]
+    ]
 
 
 def _renew_feedback_claim(feedback_id, token, session_factory):
@@ -218,6 +245,13 @@ def process_feedback(feedback_id, provider, session_factory=SessionLocal):
                         attempt + 1,
                         type(exc).__name__,
                     )
+                    if isinstance(exc, ValidationError):
+                        logger.warning(
+                            "Feedback %s stage %s validation details: %s",
+                            feedback_id,
+                            stage,
+                            _validation_details(exc),
+                        )
                     metadata["error_type"] = type(exc).__name__
                     metadata["attempts"] = attempt + 1
                     if not _is_transient(exc):

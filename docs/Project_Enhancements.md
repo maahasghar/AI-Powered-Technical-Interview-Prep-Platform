@@ -5,3 +5,4 @@ add a section to capture heuristic patterns
 add a section to capture notes, based on the errors used by the user specifically 
 make the UI more modern and seemless design 
 user gets logs out at every refresh 
+have a domain to send email from using resend. 
