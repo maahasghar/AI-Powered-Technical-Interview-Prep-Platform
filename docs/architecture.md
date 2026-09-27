@@ -93,4 +93,4 @@ The root [README](../README.md) describes the implemented product, but its proje
 
 [PROJECT_GUIDE](PROJECT_GUIDE.md) still describes a starter frontend, partly implemented authentication and unused Redis; current code implements these paths. [submission_execution.md](submission_execution.md) mixes the current E2B design with obsolete Docker memory sampling, print suppression and canonical-JSON comparison claims. The current provider parses all stdout as JSON; the worker compares Python values. These guides supersede those statements for the covered behavior.
 
-`docs/production-deployment.md`, referenced by older documentation, is absent. Use the checked-in deployment files above and verify live settings separately. No production-readiness certification or provider SLA follows from the presence of this code.
+See [production deployment](production-deployment.md) for topology, configuration and release procedures. Verify live settings separately; no production-readiness certification or provider SLA follows from the presence of this code.

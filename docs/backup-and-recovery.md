@@ -56,7 +56,7 @@ python -m alembic heads
 python -m alembic upgrade head
 ```
 
-The production-deployment guide referenced by older docs is absent, so no broken link to it is added here. Use [architecture deployment notes](architecture.md#deployment-topologies-and-health), [production Compose](../docker-compose.production.yml), [worker image](../backend/Dockerfile.worker) and [Supervisor](../backend/app/scripts/run_workers.py) as the available configuration evidence. Actual Railway backup controls and volume attachments must be verified in the deployment account.
+Use [production deployment](production-deployment.md) for release configuration and procedures, alongside [architecture deployment notes](architecture.md#deployment-topologies-and-health). Actual Railway backup controls and volume attachments must be verified in the deployment account.
 
 ## Restore Verification
 
