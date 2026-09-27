@@ -5,7 +5,7 @@ services:
     build: ./backend
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://app:app@postgres:5432/app
+      DATABASE_URL: postgresql+psycopg2://app:app@postgres:5432/app
       REDIS_URL: redis://redis:6379/0
     depends_on:
       postgres:
@@ -27,7 +27,7 @@ services:
     command: ["python", "-m", "app.judge.worker"]
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://app:app@postgres:5432/app
+      DATABASE_URL: postgresql+psycopg2://app:app@postgres:5432/app
       REDIS_URL: redis://redis:6379/0
     depends_on:
       postgres:
@@ -41,7 +41,7 @@ services:
     command: ["python", "-m", "app.feedback.worker"]
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://app:app@postgres:5432/app
+      DATABASE_URL: postgresql+psycopg2://app:app@postgres:5432/app
       REDIS_URL: redis://redis:6379/0
       OLLAMA_BASE_URL: http://ollama:11434
     depends_on:
