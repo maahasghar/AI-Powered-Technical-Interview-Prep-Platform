@@ -76,7 +76,7 @@ Do not run the backend test suite against a restored business database: its fixt
 
 ## RPO and RTO
 
-The previous project guide proposed **daily backups, at least 30 days of retention, RPO 24 hours, and RTO four hours**. These remain MVP operational targets, not provider guarantees or measured achievements.
+The recommended MVP operational targets are **daily backups, at least 30 days of retention, RPO 24 hours, and RTO four hours**. These are planning targets, not provider guarantees or measured achievements.
 
 - **RPO** is the acceptable data-loss window between the last recoverable point and the incident. Daily successful backups can support a 24-hour target only when backup completion and restore validity are verified.
 - **RTO** is the acceptable time to recover service, including database restore, configuration, validation, worker recovery and cutover. Four hours must be demonstrated through drills, not inferred from container startup time.
