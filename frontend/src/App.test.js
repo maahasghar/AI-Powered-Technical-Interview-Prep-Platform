@@ -219,3 +219,25 @@ test("submission results render only candidate fields", async () => {
   expect(screen.getByText("1.00 MiB (sampled)")).toBeInTheDocument();
   expect(screen.queryByText(/HIDDEN_SENTINEL/)).not.toBeInTheDocument();
 });
+
+test("public landing stays at root and links visitors to registration", async () => {
+  await act(async () => { open("/"); });
+  expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Practice technical interviews with AI-powered feedback.");
+  for (const link of screen.getAllByRole("link", { name: /Start Practicing/ })) {
+    expect(link).toHaveAttribute("href", "/register");
+  }
+  expect(screen.queryByRole("heading", { name: "Welcome back" })).not.toBeInTheDocument();
+  expect(global.fetch.mock.calls.every(([url]) => url.endsWith("/auth/refresh"))).toBe(true);
+  fireEvent.click(screen.getAllByRole("link", { name: /Start Practicing/ })[0]);
+  expect(await screen.findByRole("heading", { name: "Create your account" })).toBeInTheDocument();
+});
+
+test("authenticated landing directs practice and progress to existing routes", async () => {
+  await act(async () => { open("/", true); });
+  expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Practice technical interviews");
+  for (const link of screen.getAllByRole("link", { name: /Start Practicing/ })) {
+    expect(link).toHaveAttribute("href", "/problems");
+  }
+  expect(screen.getByRole("link", { name: /View your progress/ })).toHaveAttribute("href", "/progress");
+  expect(screen.queryByRole("link", { name: "Get started" })).not.toBeInTheDocument();
+});

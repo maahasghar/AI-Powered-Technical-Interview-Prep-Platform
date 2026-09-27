@@ -2,11 +2,11 @@ import { useState } from "react";
 import {
   BrowserRouter,
   Link,
-  Navigate,
   NavLink,
   Outlet,
   Route,
   Routes,
+  useLocation,
 } from "react-router-dom";
 import { AuthProvider, ProtectedRoute, useAuth } from "./auth";
 import AuthPage from "./pages/AuthPage";
@@ -14,9 +14,11 @@ import Problems from "./pages/Problems";
 import ProblemDetail from "./pages/ProblemDetail";
 import { History, SubmissionResult } from "./pages/Submissions";
 import Progress from "./pages/Progress";
+import Landing from "./pages/Landing";
 import { ErrorMessage } from "./ui";
 import "./App.css";
 function Layout() {
+  const isLanding = useLocation().pathname === "/";
   const { user, logout } = useAuth();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -32,9 +34,10 @@ function Layout() {
     }
   }
   return (
-    <>
+    <div className={isLanding ? "landing-shell" : undefined}>
+      {isLanding && <a className="landing-skip" href="#main-content">Skip to content</a>}
       <header className="site-header">
-        <Link className="brand" to="/problems">
+        <Link className="brand" to="/">
           <span className="brand-icon">&gt;_</span> Interview Prep
         </Link>
         <nav aria-label="Main navigation">
@@ -57,19 +60,19 @@ function Layout() {
           )}
         </nav>
       </header>
-      <main>
+      <main id="main-content" tabIndex={isLanding ? -1 : undefined}>
         <ErrorMessage>{error}</ErrorMessage>
         <Outlet />
       </main>
-      <footer>Small steps. Stronger solutions.</footer>
-    </>
+      <footer>{isLanding ? <><strong>Interview Prep</strong><span>Small steps. Stronger solutions.</span><span>© {new Date().getFullYear()} Interview Prep</span></> : "Small steps. Stronger solutions."}</footer>
+    </div>
   );
 }
 export function AppRoutes() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route index element={<Navigate to="/problems" replace />} />
+        <Route index element={<Landing />} />
         {[
           "login",
           "register",
